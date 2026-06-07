@@ -1,6 +1,6 @@
 # FIFA World Cup 2026 — Live Dashboard
 
-A single-file HTML dashboard for following the 2026 FIFA World Cup, built for a Bengaluru viewer (IST, UTC+5:30).
+A single-file HTML dashboard for following the 2026 FIFA World Cup, built for an Indian viewer (IST, UTC+5:30).
 
 ## Features
 
