@@ -795,8 +795,8 @@ const MATCHES = [
 {id:87, stage:'R32',bracketSlot:'R32-15',home:null,away:null,utcDate:'2026-07-04',utcTime:'19:00',venue:'AT&T Stadium',city:'Dallas',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'1K',awaySlot:'Annex C:K'},
 {id:88, stage:'R32',bracketSlot:'R32-16',home:null,away:null,utcDate:'2026-07-04',utcTime:'02:00',venue:'Arrowhead Stadium',city:'Kansas City',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'2D',awaySlot:'2G'},
 // ── ROUND OF 16 ──────────────────────────────────────────
-{id:89, stage:'R16',bracketSlot:'R16-1',home:null,away:null, utcDate:'2026-07-05',utcTime:'22:00',venue:'MetLife Stadium',city:'East Rutherford',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R32-1',awaySlot:'W R32-3'},
-{id:90, stage:'R16',bracketSlot:'R16-2',home:null,away:null, utcDate:'2026-07-05',utcTime:'19:00',venue:'SoFi Stadium',city:'Los Angeles',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R32-2',awaySlot:'W R32-5'},
+{id:89, stage:'R16',bracketSlot:'R16-1',home:null,away:null, utcDate:'2026-07-05',utcTime:'22:00',venue:'MetLife Stadium',city:'East Rutherford',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R32-2',awaySlot:'W R32-5'},
+{id:90, stage:'R16',bracketSlot:'R16-2',home:null,away:null, utcDate:'2026-07-05',utcTime:'19:00',venue:'SoFi Stadium',city:'Los Angeles',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R32-1',awaySlot:'W R32-3'},
 {id:91, stage:'R16',bracketSlot:'R16-3',home:null,away:null, utcDate:'2026-07-06',utcTime:'22:00',venue:'AT&T Stadium',city:'Dallas',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R32-4',awaySlot:'W R32-6'},
 {id:92, stage:'R16',bracketSlot:'R16-4',home:null,away:null, utcDate:'2026-07-06',utcTime:'19:00',venue:'Lumen Field',city:'Seattle',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R32-7',awaySlot:'W R32-8'},
 {id:93, stage:'R16',bracketSlot:'R16-5',home:null,away:null, utcDate:'2026-07-07',utcTime:'22:00',venue:'Arrowhead Stadium',city:'Kansas City',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R32-11',awaySlot:'W R32-12'},
@@ -805,8 +805,8 @@ const MATCHES = [
 {id:96, stage:'R16',bracketSlot:'R16-8',home:null,away:null, utcDate:'2026-07-08',utcTime:'19:00',venue:'SoFi Stadium',city:'Los Angeles',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R32-13',awaySlot:'W R32-15'},
 // ── QUARTER-FINALS ───────────────────────────────────────
 {id:97, stage:'QF',bracketSlot:'QF-1',home:null,away:null, utcDate:'2026-07-10',utcTime:'22:00',venue:'MetLife Stadium',city:'East Rutherford',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R16-1',awaySlot:'W R16-2'},
-{id:98, stage:'QF',bracketSlot:'QF-2',home:null,away:null, utcDate:'2026-07-10',utcTime:'19:00',venue:'AT&T Stadium',city:'Dallas',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R16-3',awaySlot:'W R16-4'},
-{id:99, stage:'QF',bracketSlot:'QF-3',home:null,away:null, utcDate:'2026-07-11',utcTime:'22:00',venue:'SoFi Stadium',city:'Los Angeles',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R16-5',awaySlot:'W R16-6'},
+{id:98, stage:'QF',bracketSlot:'QF-2',home:null,away:null, utcDate:'2026-07-10',utcTime:'19:00',venue:'AT&T Stadium',city:'Dallas',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R16-5',awaySlot:'W R16-6'},
+{id:99, stage:'QF',bracketSlot:'QF-3',home:null,away:null, utcDate:'2026-07-11',utcTime:'22:00',venue:'SoFi Stadium',city:'Los Angeles',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R16-3',awaySlot:'W R16-4'},
 {id:100,stage:'QF',bracketSlot:'QF-4',home:null,away:null, utcDate:'2026-07-11',utcTime:'19:00',venue:'Lumen Field',city:'Seattle',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W R16-7',awaySlot:'W R16-8'},
 // ── SEMI-FINALS ──────────────────────────────────────────
 {id:101,stage:'SF',bracketSlot:'SF-1',home:null,away:null, utcDate:'2026-07-14',utcTime:'23:00',venue:'MetLife Stadium',city:'East Rutherford',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'W QF-1',awaySlot:'W QF-2'},
@@ -2033,8 +2033,18 @@ function renderBracket() {
 
   // ── R32
   const r32Ms=MATCHES.filter(m=>m.stage==='R32');
+  // Visual ordering matches the official FIFA 2026 bracket path:
+  // SF-1 half (top 8): R32 feeders for R16-1,R16-2,R16-5,R16-6 → QF-1,QF-2
+  // SF-2 half (bot 8): R32 feeders for R16-3,R16-4,R16-7,R16-8 → QF-3,QF-4
+  // R32_VIS maps visual slot→r32Ms index so adjacent pairs feed the correct R16 match:
+  // vis 0,1=R32-2,R32-5(→R16-1); vis 2,3=R32-1,R32-3(→R16-2);
+  // vis 4,5=R32-11,R32-12(→R16-5); vis 6,7=R32-9,R32-10(→R16-6);
+  // vis 8,9=R32-4,R32-6(→R16-3); vis 10,11=R32-7,R32-8(→R16-4);
+  // vis 12,13=R32-14,R32-16(→R16-7); vis 14,15=R32-13,R32-15(→R16-8)
+  const R32_VIS=[1,4,0,2,10,11,8,9,3,5,6,7,13,15,12,14];
+  const r32Ordered=R32_VIS.map(i=>r32Ms[i]);
   for(let i=0;i<16;i++) {
-    const bm=r32Ms[i];
+    const bm=r32Ordered[i];
     const y=r32Y[i];
     const tc=bm?.home||resolveSlot(bm?.homeSlot,stMap,thirdRanked);
     const bc=bm?.away||resolveSlot(bm?.awaySlot,stMap,thirdRanked);
@@ -2045,10 +2055,13 @@ function renderBracket() {
 
   // ── R16
   const r16Ms=MATCHES.filter(m=>m.stage==='R16');
+  // Reorder R16 visually: R16-1,R16-2 (→QF-1); R16-5,R16-6 (→QF-2); R16-3,R16-4 (→QF-3); R16-7,R16-8 (→QF-4)
+  const R16_VIS=[0,1,4,5,2,3,6,7];
+  const r16Ordered=R16_VIS.map(i=>r16Ms[i]);
   for(let j=0;j<8;j++) {
     svgLines+=connector(0,r32Y[j*2],r32Y[j*2+1],r16Y[j],
-      getScoreFor(r32Ms[j*2]).homeScore!==null, getScoreFor(r32Ms[j*2+1]).homeScore!==null);
-    const bm=r16Ms[j];
+      getScoreFor(r32Ordered[j*2]).homeScore!==null, getScoreFor(r32Ordered[j*2+1]).homeScore!==null);
+    const bm=r16Ordered[j];
     const tc=bm?.home||resolveSlot(bm?.homeSlot,stMap,thirdRanked);
     const bc=bm?.away||resolveSlot(bm?.awaySlot,stMap,thirdRanked);
     const s1=getScoreFor(bm);
@@ -2060,7 +2073,7 @@ function renderBracket() {
   const qfMs=MATCHES.filter(m=>m.stage==='QF');
   for(let k=0;k<4;k++) {
     svgLines+=connector(1,r16Y[k*2],r16Y[k*2+1],qfY[k],
-      getScoreFor(r16Ms[k*2]).homeScore!==null, getScoreFor(r16Ms[k*2+1]).homeScore!==null);
+      getScoreFor(r16Ordered[k*2]).homeScore!==null, getScoreFor(r16Ordered[k*2+1]).homeScore!==null);
     const bm=qfMs[k];
     const tc=bm?.home||resolveSlot(bm?.homeSlot,stMap,thirdRanked);
     const bc=bm?.away||resolveSlot(bm?.awaySlot,stMap,thirdRanked);
