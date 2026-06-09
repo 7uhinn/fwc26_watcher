@@ -339,6 +339,8 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
   text-align:center;white-space:nowrap;min-width:38px;
 }
 .card-score.vs{font-size:10px;color:var(--muted);font-weight:500;}
+.aet-label{font-size:10px;color:var(--muted);margin-left:5px;letter-spacing:.5px;font-weight:500;}
+.pen-score{font-size:11px;color:var(--muted);margin:0 2px;font-weight:500;}
 /* footer row */
 .card-foot{display:flex;align-items:center;gap:5px;flex-wrap:nowrap;min-width:0;}
 .ist-time{font-size:10px;font-weight:700;color:var(--text);flex-shrink:0;}
@@ -1992,14 +1994,17 @@ function renderBracket() {
     out+=slotLine(topCode,topSlot,y+3, y+13, wit===false);
     if(topScore!=null) {
       const scoreClass=wit===true?'br-text-score':wit===false?'br-text-tbd':'br-text-score';
-      out+=`<text class="${scoreClass}" x="${x+w-5}" y="${y+13}" text-anchor="end">${topScore}</text>`;
+      const topDisp=bmRef?.pen&&bmRef?.penHome!=null?`${topScore}(${bmRef.penHome})`:String(topScore);
+      out+=`<text class="${scoreClass}" x="${x+w-5}" y="${y+13}" text-anchor="end">${topDisp}</text>`;
     }
 
     out+=slotLine(botCode,botSlot,y+23,y+33, wit===true);
     if(botScore!=null) {
       const scoreClass=wit===false?'br-text-score':wit===true?'br-text-tbd':'br-text-score';
-      out+=`<text class="${scoreClass}" x="${x+w-5}" y="${y+33}" text-anchor="end">${botScore}</text>`;
+      const botDisp=bmRef?.pen&&bmRef?.penAway!=null?`${botScore}(${bmRef.penAway})`:String(botScore);
+      out+=`<text class="${scoreClass}" x="${x+w-5}" y="${y+33}" text-anchor="end">${botDisp}</text>`;
     }
+    if(bmRef?.aet&&!isLive) out+=`<text style="font-size:5px;fill:var(--muted);font-family:-apple-system,sans-serif" x="${x+w-3}" y="${y+39}" text-anchor="end">${bmRef.pen?'pso':'aet'}</text>`;
 
     if(isLive) out+=`<circle cx="${x+w-4}" cy="${y+3}" r="2.5" fill="var(--gold)"><animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite"/></circle>`;
     if(predictionMode&&bmRef&&bmRef.status!=='FINISHED'&&bmRef.status!=='IN_PLAY') {
@@ -2230,7 +2235,13 @@ function renderSchedule() {
     } else if(isLive) {
       centerDisp=`<div class="card-score" style="color:var(--green)">${m.homeScore??'•'} - ${m.awayScore??'•'}</div>`;
     } else if(isDone) {
-      centerDisp=`<div class="card-score"><span style="${homeScoreStyle}">${m.homeScore}</span><span style="color:var(--muted);margin:0 2px">-</span><span style="${awayScoreStyle}">${m.awayScore}</span></div>`;
+      if(m.pen&&m.penHome!=null&&m.penAway!=null) {
+        centerDisp=`<div class="card-score"><span class="pen-score">(${m.penHome})</span><span style="${homeScoreStyle}">${m.homeScore}</span><span style="color:var(--muted);margin:0 2px">-</span><span style="${awayScoreStyle}">${m.awayScore}</span><span class="pen-score">(${m.penAway})</span></div>`;
+      } else if(m.aet) {
+        centerDisp=`<div class="card-score"><span style="${homeScoreStyle}">${m.homeScore}</span><span style="color:var(--muted);margin:0 2px">-</span><span style="${awayScoreStyle}">${m.awayScore}</span><span class="aet-label">aet</span></div>`;
+      } else {
+        centerDisp=`<div class="card-score"><span style="${homeScoreStyle}">${m.homeScore}</span><span style="color:var(--muted);margin:0 2px">-</span><span style="${awayScoreStyle}">${m.awayScore}</span></div>`;
+      }
     } else {
       centerDisp=`<div class="card-score vs">vs</div>`;
     }
@@ -2297,6 +2308,15 @@ async function fetchAndUpdate() {
       const aCode=ESPN_TO_FIFA[ac.team?.abbreviation]||ac.team?.abbreviation;
       const hScore=parseInt(hc.score||'0',10);
       const aScore=parseInt(ac.score||'0',10);
+      const statusName=ev.status?.type?.name||'';
+      const isAET=statusName==='STATUS_FINAL_AET';
+      const isPen=statusName==='STATUS_FINAL_PEN';
+      let penH=null,penA=null;
+      if(isPen) {
+        const sh=hc.shootoutScore??hc.penaltyKicks;
+        const sa=ac.shootoutScore??ac.penaltyKicks;
+        if(sh!=null&&sa!=null){penH=parseInt(sh,10);penA=parseInt(sa,10);if(isNaN(penH)||isNaN(penA)){penH=null;penA=null;}}
+      }
 
       // Parse date for matching
       const evDate=ev.date?ev.date.slice(0,10):'';
@@ -2306,10 +2326,12 @@ async function fetchAndUpdate() {
         && (m.utcDate===evDate||!evDate)
       );
       if(match) {
-        if(match.home===hCode) { match.homeScore=hScore; match.awayScore=aScore; }
-        else { match.homeScore=aScore; match.awayScore=hScore; }
+        if(match.home===hCode) { match.homeScore=hScore; match.awayScore=aScore; match.penHome=penH; match.penAway=penA; }
+        else { match.homeScore=aScore; match.awayScore=hScore; match.penHome=penA; match.penAway=penH; }
         match.status=state==='post'?'FINISHED':'IN_PLAY';
         match.clock=ev.status?.displayClock||null;
+        match.aet=isAET||isPen;
+        match.pen=isPen;
       }
     });
 
