@@ -490,6 +490,10 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
   #center-panel.tab-active{align-items:flex-start;}
   #bracket-svg{width:760px!important;height:1034px!important;flex:0 0 auto!important;}
   #right-panel.tab-active #schedule-list{flex:1;overflow-y:auto;}
+  /* Fix modals: override desktop 1920×1080 backdrop to cover mobile viewport */
+  #pred-editor,#info-panel{width:100%!important;height:100%!important;}
+  .info-modal{width:calc(100% - 24px)!important;max-height:calc(100dvh - 60px);overflow-y:auto;}
+  .pred-modal{width:calc(100% - 24px)!important;max-width:400px;}
 }
 </style>
 </head>
