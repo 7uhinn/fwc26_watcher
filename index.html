@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🏆</text></svg>">
 <title>FIFA World Cup 2026 — Live Dashboard</title>
 <!--
   FREE API CANDIDATES (plug in fetchLiveData to swap):
@@ -42,7 +43,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
   font-size:13px;font-weight:700;letter-spacing:2px;
   color:var(--gold);text-transform:uppercase;flex-shrink:0;
 }
-#dash-header .title span{color:var(--accent);font-size:10px;margin-left:4px;}
+#dash-header .title span:not(.title-full):not(.title-short){color:var(--accent);font-size:10px;margin-left:2px;}
 .title-short{display:none;}
 #header-ist{font-size:11px;color:var(--muted);flex-shrink:0;}
 #header-updated{font-size:10px;color:var(--gray);margin-left:auto;}
@@ -2736,11 +2737,11 @@ function renderMobileBracket() {
   const el=document.getElementById('mobile-bracket');
   if(!el) return;
 
+  // ── Desktop bracket rotated 90°: rounds flow top→bottom, same connector style
   const stMap={};
   for(const g of 'ABCDEFGHIJKL') stMap[g]=computeGroupStandings(g);
   const thirdRanked=computeThirdPlaceStandings();
 
-  // Same visual ordering as desktop renderBracket()
   const r32Ms=MATCHES.filter(m=>m.stage==='R32');
   const R32_VIS=[1,4,0,2,10,11,8,9,3,5,6,7,13,15,12,14];
   const r32Ord=R32_VIS.map(i=>r32Ms[i]);
@@ -2752,172 +2753,140 @@ function renderMobileBracket() {
   const trdM=MATCHES.find(m=>m.stage==='THIRD');
   const finM=MATCHES.find(m=>m.stage==='FINAL');
 
-  // Layout constants (viewBox 376×700)
-  const W=376, COLS=8, cw=W/COLS; // col width = 47
-  const mH=56; // match card height
-  const lH=11; // label height
-  const cH=34; // connector space between rounds
-  const r32gap=8;
+  // ── Layout — same visual language as desktop, rounds flow top→bottom
+  const W=376, cw=47;   // 8 columns × 47px = 376px
+  const MH=44;          // match block height
+  const r32gap=20;      // gap between the two R32 stacked rows
+  const RG=62;          // inter-round connector zone height
 
-  // Y positions
-  const yR32lbl=6;
-  const yR32a=yR32lbl+lH; // row1 top
-  const yR32b=yR32a+mH+r32gap; // row2 top
-  const yConnR32R16=yR32b+mH; // connector zone start
-  const yR16lbl=yConnR32R16+cH;
-  const yR16=yR16lbl+lH;
-  const yConnR16QF=yR16+mH;
-  const yQFlbl=yConnR16QF+cH;
-  const yQF=yQFlbl+lH;
-  const yConnQFSF=yQF+mH;
-  const ySFlbl=yConnQFSF+cH;
-  const ySF=ySFlbl+lH;
-  const yConnSFFin=ySF+mH;
-  const y3rdlbl=yConnSFFin+cH;
-  const y3rd=y3rdlbl+lH;
-  const yFinlbl=y3rd+mH+4;
-  const yFin=yFinlbl+lH;
-  const svgH=yFin+mH+8;
+  const yR32a = 14;
+  const yR32b = yR32a+MH+r32gap;    // 78
+  const yR16  = yR32b+MH+RG;        // 184
+  const yQF   = yR16+MH+RG;         // 290
+  const ySF   = yQF+MH+RG;          // 396
+  const y3rd  = ySF+MH+RG;          // 502
+  const yFin  = y3rd+MH+26;         // 572 (16px gap + 10px label space)
+  const svgH  = yFin+MH+8;          // 624
 
-  function teamRow(code,slot,y,x,w,isWin,isLoss,sz=7) {
-    const iso=code?FLAG_MAP[code]:null;
-    const opacity=isLoss?' opacity=".32"':'';
-    const fill=isWin?'var(--gold)':isLoss?'var(--muted)':'var(--text)';
-    let s='';
-    if(iso) s+=`<image href="https://flagcdn.com/w40/${iso}.png" x="${x+2}" y="${y+2}" width="10" height="7" clip-path="inset(0% round 1px)"${opacity}/>`;
-    else if(code) s+=`<rect x="${x+2}" y="${y+1}" width="10" height="8" rx="1" fill="${FLAG_COLORS[code]||'#334'}"${opacity}/><text x="${x+7}" y="${y+8}" text-anchor="middle" font-size="5" fill="white"${opacity}>${code.slice(0,2)}</text>`;
-    s+=`<text x="${x+14}" y="${y+9}" font-size="${sz}" font-family="-apple-system,BlinkMacSystemFont,sans-serif" fill="${fill}"${opacity}>${code||slot||'TBD'}</text>`;
-    return s;
+  // ── Winner helper
+  function wit(bm) {
+    if(!bm) return null;
+    const s=getScoreFor(bm);
+    if(s.homeScore===null) return null;
+    return s.homeScore>s.awayScore?true:s.awayScore>s.homeScore?false:null;
   }
 
-  function matchBlock(x,y,w,bm,hSlot,aSlot,showScore) {
+  // ── Desktop-style match block
+  function matchBlock(x,y,w,bm,hSlot,aSlot,isFinal) {
     const hc=bm?.home||resolveSlot(hSlot,stMap,thirdRanked);
     const ac=bm?.away||resolveSlot(aSlot,stMap,thirdRanked);
-    const s=getScoreFor(bm);
-    const live=bm?.status==='IN_PLAY'||bm?.status==='HT';
-    const done=bm?.status==='FINISHED';
-    const has=s.homeScore!==null&&s.awayScore!==null;
-    const hWin=done&&has&&s.homeScore>s.awayScore;
-    const aWin=done&&has&&s.awayScore>s.homeScore;
-    const bg=live?'br-final-bg':'br-match-bg';
-    const mid=y+mH/2;
-    let o=`<rect class="${bg}" x="${x+0.5}" y="${y+0.5}" width="${w-1}" height="${mH-1}" rx="2"/>`;
+    const sc=getScoreFor(bm);
+    const live=bm?.status==='IN_PLAY';
+    const wd=wit(bm);
+    const half=MH>>1;
+    const pad=Math.max(2,(half-12)>>1); // vertical padding to center 12px flag in half-height
+    const bg=isFinal?'br-final-bg':'br-match-bg';
+    let o=`<rect class="${bg}" x="${x}" y="${y}" width="${w}" height="${MH}" rx="2"/>`;
+    if(wd===true)  o+=`<rect x="${x+1}" y="${y+1}" width="${w-2}" height="${half-1}" fill="rgba(255,219,0,.10)"/>`;
+    if(wd===false) o+=`<rect x="${x+1}" y="${y+half}" width="${w-2}" height="${half-1}" fill="rgba(255,219,0,.10)"/>`;
+    o+=`<line class="br-divider" x1="${x}" y1="${y+half}" x2="${x+w}" y2="${y+half}"/>`;
+    function slotLine(code,slot,yOff,isLoser) {
+      const ft=y+yOff;
+      let out='';
+      if(code) {
+        const iso=FLAG_MAP[code]; const op=isLoser?' opacity=".4"':'';
+        if(iso) out+=`<image href="https://flagcdn.com/w40/${iso}.png" x="${x+2}" y="${ft}" width="12" height="12" clip-path="inset(0% round 1px)"${op}/>`;
+        else out+=`<rect x="${x+2}" y="${ft}" width="12" height="12" rx="1" fill="${FLAG_COLORS[code]||'#334'}"${op}/><text x="${x+8}" y="${ft+9}" text-anchor="middle" font-size="5" fill="white"${op}>${code.slice(0,2)}</text>`;
+        out+=`<text class="${isLoser?'br-text-tbd':'br-text-code'}" x="${x+16}" y="${ft+11}">${code}</text>`;
+      } else {
+        out+=`<text class="br-text-tbd" x="${x+3}" y="${ft+11}" font-size="8">${slot||'TBD'}</text>`;
+      }
+      return out;
+    }
+    o+=slotLine(hc,hSlot,pad,wd===false);
+    if(sc.homeScore!=null) o+=`<text class="${wd===true?'br-text-score':wd===false?'br-text-tbd':'br-text-score'}" x="${x+w-3}" y="${y+pad+11}" text-anchor="end">${sc.homeScore}</text>`;
+    o+=slotLine(ac,aSlot,half+pad,wd===true);
+    if(sc.awayScore!=null) o+=`<text class="${wd===false?'br-text-score':wd===true?'br-text-tbd':'br-text-score'}" x="${x+w-3}" y="${y+half+pad+11}" text-anchor="end">${sc.awayScore}</text>`;
     if(live) o+=`<circle cx="${x+w-4}" cy="${y+4}" r="2" fill="var(--gold)"><animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite"/></circle>`;
-    o+=`<line class="br-divider" x1="${x}" y1="${mid}" x2="${x+w}" y2="${mid}"/>`;
-    o+=teamRow(hc,hSlot,y,x,w,hWin,!hWin&&done&&has);
-    o+=teamRow(ac,aSlot,y+mH/2,x,w,aWin,!aWin&&done&&has);
-    if(showScore&&has) {
-      const sc=`${s.homeScore}-${s.awayScore}`;
-      o+=`<text x="${x+w-2}" y="${mid+1}" text-anchor="end" font-size="6" font-family="-apple-system,BlinkMacSystemFont,sans-serif" fill="var(--accent)" font-weight="700">${sc}</text>`;
-    }
+    if(predictionMode&&bm&&bm.status!=='FINISHED'&&bm.status!=='IN_PLAY')
+      o+=`<rect class="pred-clickable" x="${x}" y="${y}" width="${w}" height="${MH}" fill="transparent" onclick="openPredEditor(${bm.id},'${hc||''}','${ac||''}')"/>`;
     return o;
   }
 
-  // Connector lines (V-H-V bracket merge shape)
-  const CN='stroke:#2a3a4a;stroke-width:1;fill:none;'; // dim
-  const CL='stroke:var(--gold);stroke-width:1.2;fill:none;'; // lit
-
-  function vconn(x0,x1,y0,y1,lit0,lit1) {
+  // ── V-H-V connector (rotated desktop H-V-H; reuses desktop CSS classes for consistent style)
+  function vconn(x0,x1,y0,y1,td0,td1) {
     const xm=(x0+x1)/2, ym=(y0+y1)/2;
-    let o=`<line style="${CN}" x1="${x0}" y1="${y0}" x2="${x0}" y2="${ym}"/>`;
-    o+=`<line style="${CN}" x1="${x1}" y1="${y0}" x2="${x1}" y2="${ym}"/>`;
-    o+=`<line style="${CN}" x1="${x0}" y1="${ym}" x2="${x1}" y2="${ym}"/>`;
-    o+=`<line style="${CN}" x1="${xm}" y1="${ym}" x2="${xm}" y2="${y1}"/>`;
-    if(lit0) {
-      o+=`<line style="${CL}" x1="${x0}" y1="${y0}" x2="${x0}" y2="${ym}"/>`;
-      o+=`<line style="${CL}" x1="${x0}" y1="${ym}" x2="${xm}" y2="${ym}"/>`;
-      o+=`<line style="${CL}" x1="${xm}" y1="${ym}" x2="${xm}" y2="${y1}"/>`;
-    }
-    if(lit1) {
-      o+=`<line style="${CL}" x1="${x1}" y1="${y0}" x2="${x1}" y2="${ym}"/>`;
-      o+=`<line style="${CL}" x1="${x1}" y1="${ym}" x2="${xm}" y2="${ym}"/>`;
-      if(!lit0) o+=`<line style="${CL}" x1="${xm}" y1="${ym}" x2="${xm}" y2="${y1}"/>`;
-    }
+    let o=
+      `<line class="br-connector" x1="${x0}" y1="${y0}" x2="${x0}" y2="${ym}"/>` +
+      `<line class="br-connector" x1="${x1}" y1="${y0}" x2="${x1}" y2="${ym}"/>` +
+      `<line class="br-connector" x1="${x0}" y1="${ym}" x2="${x1}" y2="${ym}"/>` +
+      `<line class="br-connector" x1="${xm}" y1="${ym}" x2="${xm}" y2="${y1}"/>`;
+    if(td0) o+=
+      `<line class="br-connector-lit" x1="${x0}" y1="${y0}" x2="${x0}" y2="${ym}"/>` +
+      `<line class="br-connector-lit" x1="${x0}" y1="${ym}" x2="${xm}" y2="${ym}"/>` +
+      `<line class="br-connector-lit" x1="${xm}" y1="${ym}" x2="${xm}" y2="${y1}"/>`;
+    if(td1) o+=
+      `<line class="br-connector-lit" x1="${x1}" y1="${y0}" x2="${x1}" y2="${ym}"/>` +
+      `<line class="br-connector-lit" x1="${x1}" y1="${ym}" x2="${xm}" y2="${ym}"/>` +
+      (!td0?`<line class="br-connector-lit" x1="${xm}" y1="${ym}" x2="${xm}" y2="${y1}"/>`:``);
     return o;
   }
 
-  // Simple straight connector (R32 row2 → R16)
+  // ── Straight vertical connector (R32 column pairs → R16)
   function sconn(x,y0,y1,lit) {
-    let o=`<line style="${CN}" x1="${x}" y1="${y0}" x2="${x}" y2="${y1}"/>`;
-    if(lit) o+=`<line style="${CL}" x1="${x}" y1="${y0}" x2="${x}" y2="${y1}"/>`;
-    return o;
+    return `<line class="br-connector" x1="${x}" y1="${y0}" x2="${x}" y2="${y1}"/>` +
+           (lit?`<line class="br-connector-lit" x1="${x}" y1="${y0}" x2="${x}" y2="${y1}"/>`:'');
   }
 
-  function lbl(text,x,y,full=false) {
-    return `<text x="${x}" y="${y}" text-anchor="middle" font-size="7" font-weight="700" font-family="-apple-system,BlinkMacSystemFont,sans-serif" fill="${full?'var(--gold)':'var(--accent)'}" letter-spacing="1">${text}</text>`;
+  function lbl(t,x,y,gold=false) {
+    return `<text x="${x}" y="${y}" text-anchor="middle" font-size="7" font-weight="700" font-family="-apple-system,BlinkMacSystemFont,sans-serif" fill="${gold?'var(--gold)':'var(--accent)'}" letter-spacing="1">${t}</text>`;
   }
 
-  let s='';
+  // ── Two-layer render: connectors first (layer 1), match blocks on top (layer 2)
+  // Match blocks drawn last automatically mask connector lines that pass through them
+  let conn='', blks='';
 
-  // ── Round labels
-  s+=lbl('ROUND OF 32',W/2,yR32lbl+8);
-  s+=lbl('ROUND OF 16',W/2,yR16lbl+8);
-  s+=lbl('QUARTERFINALS',W/2,yQFlbl+8);
-  s+=lbl('SEMIFINALS',W/2,ySFlbl+8);
-  s+=lbl('3RD PLACE',W/2,y3rdlbl+8);
-  s+=lbl('🏆 FINAL',W/2,yFinlbl+8,true);
+  blks+=lbl('R32',      W/2, yR32a-2);
+  blks+=lbl('R16',      W/2, yR32b+MH+RG/2+4);
+  blks+=lbl('QF',       W/2, yR16+MH+RG/2+4);
+  blks+=lbl('SF',       W/2, yQF+MH+RG/2+4);
+  blks+=lbl('3RD',      W/2, ySF+MH+RG/2+4);
+  blks+=lbl('🏆 FINAL', W/2, y3rd+MH+14, true);
 
-  // ── R32 — 2 rows of 8
+  // R32 → R16: one straight line per column (match B card masks the crossing)
   for(let k=0;k<8;k++) {
-    const x=k*cw, cx=x+cw/2;
+    const cx=(k+0.5)*cw;
+    conn+=sconn(cx,yR32a+MH,yR16,
+      getScoreFor(r32Ord[k*2]).homeScore!==null||getScoreFor(r32Ord[k*2+1]).homeScore!==null);
+  }
+  // R16 → QF
+  for(let k=0;k<4;k++) conn+=vconn((k*2+0.5)*cw,(k*2+1.5)*cw,yR16+MH,yQF,
+    getScoreFor(r16Ord[k*2]).homeScore!==null, getScoreFor(r16Ord[k*2+1]).homeScore!==null);
+  // QF → SF
+  for(let k=0;k<2;k++) conn+=vconn((k*2+1)*cw,(k*2+3)*cw,yQF+MH,ySF,
+    getScoreFor(qfMs[k*2]).homeScore!==null, getScoreFor(qfMs[k*2+1]).homeScore!==null);
+  // SF → Final (passes through 3rd-place block area; 3rd block masks it)
+  conn+=vconn(2*cw,6*cw,ySF+MH,yFin,
+    getScoreFor(sfMs[0]).homeScore!==null, getScoreFor(sfMs[1]).homeScore!==null);
+
+  // R32 match blocks
+  for(let k=0;k<8;k++) {
     const ma=r32Ord[k*2], mb=r32Ord[k*2+1];
-    const litA=getScoreFor(ma).homeScore!==null, litB=getScoreFor(mb).homeScore!==null;
-    const litDown=litA||litB;
-    // Draw connector FIRST — match B card (drawn after) masks the segment through it
-    s+=sconn(cx,yR32a+mH,yR16,litDown);
-    s+=matchBlock(x,yR32a,cw,ma,ma?.homeSlot||'?',ma?.awaySlot||'?',false);
-    s+=matchBlock(x,yR32b,cw,mb,mb?.homeSlot||'?',mb?.awaySlot||'?',false);
+    blks+=matchBlock(k*cw,yR32a,cw,ma,ma?.homeSlot||'?',ma?.awaySlot||'?',false);
+    blks+=matchBlock(k*cw,yR32b,cw,mb,mb?.homeSlot||'?',mb?.awaySlot||'?',false);
   }
+  // R16
+  for(let k=0;k<8;k++) blks+=matchBlock(k*cw,yR16,cw,r16Ord[k],r16Ord[k]?.homeSlot||'?',r16Ord[k]?.awaySlot||'?',false);
+  // QF
+  for(let k=0;k<4;k++) blks+=matchBlock(k*2*cw,yQF,2*cw,qfMs[k],qfMs[k]?.homeSlot||'?',qfMs[k]?.awaySlot||'?',false);
+  // SF
+  for(let k=0;k<2;k++) blks+=matchBlock(k*4*cw,ySF,4*cw,sfMs[k],sfMs[k]?.homeSlot||'?',sfMs[k]?.awaySlot||'?',false);
+  // 3rd (masks SF→Final connector where it passes through)
+  blks+=matchBlock(0,y3rd,W,trdM,trdM?.homeSlot||'L SF-1',trdM?.awaySlot||'L SF-2',false);
+  // Final
+  blks+=matchBlock(0,yFin,W,finM,finM?.homeSlot||'W SF-1',finM?.awaySlot||'W SF-2',true);
 
-  // ── R16
-  for(let k=0;k<8;k++) {
-    const x=k*cw;
-    const m=r16Ord[k];
-    s+=matchBlock(x,yR16,cw,m,m?.homeSlot||'?',m?.awaySlot||'?',false);
-  }
-
-  // ── R16 → QF connectors (pairs: 0+1→QF0, 2+3→QF1, 4+5→QF2, 6+7→QF3)
-  for(let k=0;k<4;k++) {
-    const x0=(k*2+0.5)*cw, x1=(k*2+1.5)*cw;
-    const lit0=getScoreFor(r16Ord[k*2]).homeScore!==null;
-    const lit1=getScoreFor(r16Ord[k*2+1]).homeScore!==null;
-    s+=vconn(x0,x1,yR16+mH,yQF,lit0,lit1);
-  }
-
-  // ── QF
-  for(let k=0;k<4;k++) {
-    const x=k*2*cw;
-    const m=qfMs[k];
-    s+=matchBlock(x,yQF,2*cw,m,m?.homeSlot||'?',m?.awaySlot||'?',true);
-  }
-
-  // ── QF → SF connectors (pairs: 0+1→SF0, 2+3→SF1)
-  for(let k=0;k<2;k++) {
-    const x0=(k*2+1)*cw, x1=(k*2+3)*cw;
-    const lit0=getScoreFor(qfMs[k*2]).homeScore!==null;
-    const lit1=getScoreFor(qfMs[k*2+1]).homeScore!==null;
-    s+=vconn(x0,x1,yQF+mH,ySF,lit0,lit1);
-  }
-
-  // ── SF
-  for(let k=0;k<2;k++) {
-    const x=k*4*cw;
-    const m=sfMs[k];
-    s+=matchBlock(x,ySF,4*cw,m,m?.homeSlot||'?',m?.awaySlot||'?',true);
-  }
-
-  // ── SF → Final connector
-  const sfLit0=getScoreFor(sfMs[0]).homeScore!==null;
-  const sfLit1=getScoreFor(sfMs[1]).homeScore!==null;
-  s+=vconn(2*cw,6*cw,ySF+mH,yFin,sfLit0,sfLit1);
-
-  // ── 3rd Place
-  s+=matchBlock(0,y3rd,W,trdM,trdM?.homeSlot||'L SF-1',trdM?.awaySlot||'L SF-2',true);
-
-  // ── Final
-  s+=matchBlock(0,yFin,W,finM,finM?.homeSlot||'W SF-1',finM?.awaySlot||'W SF-2',true);
-
-  el.innerHTML=`<svg viewBox="0 0 ${W} ${svgH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block">${s}</svg>`;
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${svgH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block">${conn}${blks}</svg>`;
 }
 
 function renderAll() {
