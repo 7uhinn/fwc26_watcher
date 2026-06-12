@@ -451,45 +451,67 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 /* ─── MOBILE LAYOUT (<1024px) ─── */
 @media(max-width:1023px){
   html,body{height:100%;overflow:hidden;}
-  #dashboard{
-    display:flex;flex-direction:column;overflow:hidden;
-  }
+  #dashboard{display:flex;flex-direction:column;overflow:hidden;}
+
+  /* Compact single-row header — hide secondary items to save vertical space */
   #dash-header{
-    height:auto;flex-wrap:wrap;gap:6px;padding:6px 10px;flex-shrink:0;
+    height:auto;flex-wrap:nowrap;gap:5px;padding:5px 8px;flex-shrink:0;overflow:hidden;
   }
-  #header-updated,#small-warning{display:none!important;}
+  #dash-header .title{font-size:11px;letter-spacing:1px;}
+  #header-updated,#small-warning,#header-ist,#auto-fill-btn,#reset-pred-btn{display:none!important;}
+
   #mobile-tab-bar{display:flex;}
-  #panels{
-    height:auto;flex:1;overflow:hidden;position:relative;
-  }
+  #panels{height:auto;flex:1;overflow:hidden;position:relative;}
   #left-panel,#center-panel,#right-panel{
-    position:absolute;inset:0;
-    width:100%;height:100%;
+    position:absolute;inset:0;width:100%;height:100%;
     flex:none;display:none;border:none;padding:0;
   }
+
+  /* ── GROUPS TAB: 3-col grid + proportional split, zero outer scroll ── */
   #left-panel.tab-active{
-    display:flex;flex-direction:column;overflow-y:auto;
-    padding:6px;gap:6px;
+    display:flex;flex-direction:column;overflow:hidden;padding:4px;gap:4px;
   }
-  #center-panel.tab-active{display:flex;overflow:auto;}
-  #right-panel.tab-active{display:flex;flex-direction:column;}
   #groups-grid{
-    grid-template-columns:repeat(2,1fr)!important;
-    flex:0 0 auto!important;overflow:visible!important;
+    grid-template-columns:repeat(3,1fr)!important;
+    flex:0 0 56%!important;gap:3px!important;overflow:hidden!important;
   }
+  /* Compact group card — rows fill available height via flex:1 */
+  .group-card{padding:2px 3px!important;}
+  .group-hdr{font-size:8px!important;padding-bottom:1px!important;margin-bottom:1px!important;}
+  .group-col-hdr{
+    grid-template-columns:11px 1fr 11px 10px 10px 10px 13px 13px!important;
+    column-gap:1px!important;font-size:7px!important;margin-bottom:0!important;
+  }
+  .team-row{
+    grid-template-columns:11px 1fr 11px 10px 10px 10px 13px 13px!important;
+    column-gap:1px!important;font-size:8.5px!important;
+    flex:1!important;height:auto!important;min-height:0!important;margin-bottom:0!important;
+  }
+  .group-card .flag-img{width:11px!important;height:auto!important;}
+
+  /* Third-place section fills remaining height, rows stretch to fit */
   #third-section{
-    flex:0 0 auto!important;height:auto!important;
-    overflow:visible!important;min-height:0!important;
+    flex:1!important;min-height:0!important;overflow:hidden!important;
+    padding:3px 4px 2px!important;
   }
-  #third-list{
-    flex:0 0 auto!important;overflow:visible!important;
-    height:auto!important;min-height:0!important;
+  #third-section-title{margin-bottom:2px!important;padding-bottom:2px!important;}
+  #third-list{flex:1!important;overflow:hidden!important;min-height:0!important;}
+  .third-row{flex:1!important;height:auto!important;min-height:0!important;}
+  #third-section .flag-img{width:13px!important;height:auto!important;}
+
+  /* ── BRACKET TAB: scale SVG to fit viewport, no scroll ── */
+  #center-panel.tab-active{
+    display:flex;overflow:hidden;align-items:center;justify-content:center;
   }
-  .third-row{flex:0 0 auto!important;height:28px!important;}
-  #center-panel.tab-active{align-items:flex-start;}
-  #bracket-svg{width:760px!important;height:1034px!important;flex:0 0 auto!important;}
+  #bracket-svg{width:100%!important;height:100%!important;flex:1!important;}
+
+  /* ── SCHEDULE TAB: hide venue line, tighter cards ── */
+  #right-panel.tab-active{display:flex;flex-direction:column;}
   #right-panel.tab-active #schedule-list{flex:1;overflow-y:auto;}
-  /* Fix modals: override desktop backdrop to cover mobile viewport */
+  .card-foot-sub{display:none!important;}
+  .match-card{padding:4px 7px 3px!important;margin-bottom:3px!important;}
+
+  /* ── MODALS ── */
   #pred-editor,#info-panel{width:100%!important;height:100%!important;}
   .info-modal{width:calc(100% - 24px)!important;max-height:calc(100dvh - 60px);overflow-y:auto;}
   .pred-modal{width:calc(100% - 24px)!important;max-width:400px;}
