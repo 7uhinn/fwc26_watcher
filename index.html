@@ -464,6 +464,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
   .title-full{display:none;}
   .title-short{display:inline;}
   #header-updated,#small-warning,#header-ist{display:none!important;}
+  #dashboard.pred-mode #update-btn,#dashboard.pred-mode #info-btn{display:none!important;}
 
   #mobile-tab-bar{display:flex;}
   #panels{height:auto;flex:1;overflow:hidden;position:relative;}
@@ -2863,7 +2864,7 @@ function renderMobileBracket() {
   for(let k=0;k<4;k++) conn+=vconn((k*2+0.5)*cw,(k*2+1.5)*cw,yR16+MH,yQF,
     getScoreFor(r16Ord[k*2]).homeScore!==null, getScoreFor(r16Ord[k*2+1]).homeScore!==null);
   // QF → SF
-  for(let k=0;k<2;k++) conn+=vconn((k*2+1)*cw,(k*2+3)*cw,yQF+MH,ySF,
+  for(let k=0;k<2;k++) conn+=vconn((k*4+1)*cw,(k*4+3)*cw,yQF+MH,ySF,
     getScoreFor(qfMs[k*2]).homeScore!==null, getScoreFor(qfMs[k*2+1]).homeScore!==null);
   // SF → Final (passes through 3rd-place block area; 3rd block masks it)
   conn+=vconn(2*cw,6*cw,ySF+MH,yFin,
