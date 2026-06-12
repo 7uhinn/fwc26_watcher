@@ -2757,7 +2757,7 @@ function renderMobileBracket() {
   const mH=56; // match card height
   const lH=11; // label height
   const cH=34; // connector space between rounds
-  const r32gap=4;
+  const r32gap=8;
 
   // Y positions
   const yR32lbl=6;
@@ -2859,21 +2859,14 @@ function renderMobileBracket() {
 
   // ── R32 — 2 rows of 8
   for(let k=0;k<8;k++) {
-    const x=k*cw;
+    const x=k*cw, cx=x+cw/2;
     const ma=r32Ord[k*2], mb=r32Ord[k*2+1];
+    const litA=getScoreFor(ma).homeScore!==null, litB=getScoreFor(mb).homeScore!==null;
+    const litDown=litA||litB;
+    // Draw connector FIRST — match B card (drawn after) masks the segment through it
+    s+=sconn(cx,yR32a+mH,yR16,litDown);
     s+=matchBlock(x,yR32a,cw,ma,ma?.homeSlot||'?',ma?.awaySlot||'?',false);
     s+=matchBlock(x,yR32b,cw,mb,mb?.homeSlot||'?',mb?.awaySlot||'?',false);
-    // Pairing bracket mark on right edge
-    const rx=x+cw-1.5;
-    const midA=yR32a+mH/2, midB=yR32b+mH/2;
-    const midAB=(midA+midB)/2;
-    s+=`<line style="${CN}" x1="${rx}" y1="${midA}" x2="${rx}" y2="${midB}"/>`;
-    // R32 → R16 straight connector from mid of right-edge bracket
-    const cx=x+cw/2;
-    const litA=getScoreFor(ma).homeScore!==null, litB=getScoreFor(mb).homeScore!==null;
-    const litDown=litA&&litB;
-    s+=`<line style="${CN}" x1="${rx}" y1="${midAB}" x2="${cx}" y2="${midAB}"/>`;
-    s+=sconn(cx,yR32b+mH,yR16,litDown);
   }
 
   // ── R16
