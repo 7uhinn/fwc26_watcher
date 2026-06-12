@@ -22,11 +22,9 @@
 }
 html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--text)}
 
-/* ── SCALE WRAPPER ── */
+/* ── FLUID WRAPPER ── */
 #dashboard{
-  width:1920px;height:1080px;
-  position:absolute;top:0;left:0;
-  transform-origin:top left;
+  position:fixed;inset:0;
   background:var(--bg);
   display:flex;flex-direction:column;
   overflow:hidden;
@@ -34,7 +32,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 
 /* ── HEADER ── */
 #dash-header{
-  width:1920px;height:32px;flex-shrink:0;
+  width:100%;height:32px;flex-shrink:0;
   background:linear-gradient(90deg,#080a0d 0%,#0d1117 50%,#080a0d 100%);
   border-bottom:1px solid var(--border);
   display:flex;align-items:center;
@@ -121,14 +119,14 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 
 /* ── THREE-PANEL CONTAINER ── */
 #panels{
-  width:1920px;height:1048px;
+  width:100%;height:0;min-height:0;
   display:flex;flex-direction:row;
   overflow:hidden;flex:1;
 }
 
 /* ── LEFT PANEL ── */
 #left-panel{
-  width:576px;height:1048px;flex-shrink:0;
+  flex:0 0 clamp(240px,28vw,540px);height:100%;
   display:flex;flex-direction:column;
   border-right:1px solid var(--border);
   overflow:hidden;padding:6px 6px 4px 6px;gap:6px;
@@ -143,32 +141,32 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:4px;
-  flex:0 0 508px;
+  flex:0 0 auto;
   overflow:hidden;
 }
 .group-card{
   background:var(--card);border:1px solid var(--border);
-  border-radius:4px;padding:4px 4px 3px;overflow:hidden;
+  border-radius:4px;padding:3px 4px 2px;overflow:hidden;
   display:flex;flex-direction:column;
 }
 .group-hdr{
   font-size:9px;font-weight:700;letter-spacing:1.2px;
   color:var(--accent);text-transform:uppercase;
   padding-bottom:2px;border-bottom:1px solid var(--border);
-  margin-bottom:2px;flex-shrink:0;
+  margin-bottom:1px;flex-shrink:0;
 }
 .group-col-hdr{
   display:grid;
   grid-template-columns:16px 1fr 16px 13px 13px 13px 20px 18px;
   column-gap:2px;font-size:8px;color:var(--gray);
-  margin-bottom:2px;
+  margin-bottom:1px;
 }
 .team-row{
   display:grid;
   grid-template-columns:16px 1fr 16px 13px 13px 13px 20px 18px;
-  column-gap:2px;align-items:center;height:18px;
+  column-gap:2px;align-items:center;height:16px;
   font-size:10px;font-variant-numeric:tabular-nums;
-  border-radius:2px;padding:0 2px;margin-bottom:1px;
+  border-radius:2px;padding:0 2px;margin-bottom:0;
 }
 .team-row:last-child{margin-bottom:0;}
 .team-row.q1,.team-row.q2{background:rgba(2,185,6,.10);}
@@ -185,7 +183,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 }
 .team-code{font-size:9px;font-weight:700;color:var(--text);white-space:nowrap;flex-shrink:0;}
 .team-name-full{font-size:8px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.stat{text-align:right;color:var(--muted);font-size:9px;}
+.stat{text-align:center;color:var(--muted);font-size:9px;}
 .stat.pts{color:var(--text);font-weight:700;font-size:10px;}
 .stat.gd.pos{color:var(--green);}
 .stat.gd.neg{color:var(--red);}
@@ -230,7 +228,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 
 /* ── CENTER PANEL ── */
 #center-panel{
-  width:768px;height:1048px;flex-shrink:0;
+  flex:1;min-width:280px;height:100%;
   display:flex;flex-direction:column;
   border-right:1px solid var(--border);
   overflow:hidden;padding:4px 2px;
@@ -242,12 +240,12 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
   display:flex;align-items:center;gap:8px;
 }
 #bracket-svg{
-  width:764px;flex:1;display:block;overflow:visible;
+  flex:1;width:100%;min-height:0;display:block;overflow:visible;
 }
 
 /* ── RIGHT PANEL ── */
 #right-panel{
-  width:576px;height:1048px;flex-shrink:0;
+  flex:0 0 clamp(200px,22vw,380px);height:100%;
   display:flex;flex-direction:column;overflow:hidden;
 }
 #schedule-header{
@@ -327,7 +325,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 }
 .card-home{display:flex;align-items:center;gap:4px;min-width:0;}
 .card-away{display:flex;align-items:center;gap:4px;justify-content:flex-end;min-width:0;}
-.card-nm{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-nm{font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .watch-tag{display:inline-block;font-size:9px;cursor:help;margin-left:2px;position:relative;}
 .watch-tag:hover .tooltip{display:block;}
 .tooltip{
@@ -454,25 +452,20 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 @media(max-width:1023px){
   html,body{height:100%;overflow:hidden;}
   #dashboard{
-    width:100%!important;height:100dvh!important;
-    position:fixed!important;top:0!important;left:0!important;
-    transform:none!important;
     display:flex;flex-direction:column;overflow:hidden;
   }
   #dash-header{
-    width:100%!important;height:auto!important;
-    flex-wrap:wrap;gap:6px;padding:6px 10px;flex-shrink:0;
+    height:auto;flex-wrap:wrap;gap:6px;padding:6px 10px;flex-shrink:0;
   }
   #header-updated,#small-warning{display:none!important;}
   #mobile-tab-bar{display:flex;}
   #panels{
-    width:100%!important;height:auto!important;
-    flex:1;overflow:hidden;position:relative;
+    height:auto;flex:1;overflow:hidden;position:relative;
   }
   #left-panel,#center-panel,#right-panel{
     position:absolute;inset:0;
-    width:100%!important;height:100%!important;
-    display:none;border:none;padding:0;
+    width:100%;height:100%;
+    flex:none;display:none;border:none;padding:0;
   }
   #left-panel.tab-active{
     display:flex;flex-direction:column;overflow-y:auto;
@@ -496,11 +489,15 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
   #center-panel.tab-active{align-items:flex-start;}
   #bracket-svg{width:760px!important;height:1034px!important;flex:0 0 auto!important;}
   #right-panel.tab-active #schedule-list{flex:1;overflow-y:auto;}
-  /* Fix modals: override desktop 1920×1080 backdrop to cover mobile viewport */
+  /* Fix modals: override desktop backdrop to cover mobile viewport */
   #pred-editor,#info-panel{width:100%!important;height:100%!important;}
   .info-modal{width:calc(100% - 24px)!important;max-height:calc(100dvh - 60px);overflow-y:auto;}
   .pred-modal{width:calc(100% - 24px)!important;max-width:400px;}
   .tl-modal{width:calc(100% - 24px)!important;max-height:calc(100dvh - 40px);}
+}
+/* ─── NARROW DESKTOP (1024–1699px): 2-column group grid ─── */
+@media(min-width:1024px) and (max-width:1699px){
+  #groups-grid{grid-template-columns:repeat(2,1fr)!important;}
 }
 #match-timeline{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:310;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
 #match-timeline.open{opacity:1;pointer-events:all;}
@@ -1957,12 +1954,12 @@ function renderGroups() {
 <div class="group-hdr">GROUP ${g}</div>
 <div class="group-col-hdr">
   <span></span><span></span>
-  <span title="Matches Played" style="text-align:right">MP</span>
-  <span title="Won" style="text-align:right">W</span>
-  <span title="Drawn" style="text-align:right">D</span>
-  <span title="Lost" style="text-align:right">L</span>
-  <span title="Goal Difference" style="text-align:right">GD</span>
-  <span title="Points" style="text-align:right">Pts</span>
+  <span title="Matches Played" style="text-align:center">MP</span>
+  <span title="Won" style="text-align:center">W</span>
+  <span title="Drawn" style="text-align:center">D</span>
+  <span title="Lost" style="text-align:center">L</span>
+  <span title="Goal Difference" style="text-align:center">GD</span>
+  <span title="Points" style="text-align:center">Pts</span>
 </div>`;
     const prev=_prevGroupOrder[g]||[];
     standings.forEach((r,i)=>{
@@ -2002,10 +1999,10 @@ function renderThirdPlace() {
 <span style="font-size:8px;color:var(--gray);text-align:center">#</span>
 <span></span>
 <span style="font-size:8px;color:var(--gray)">Team</span>
-<span style="font-size:8px;color:var(--gray);text-align:right">Grp</span>
-<span style="font-size:8px;color:var(--gray);text-align:right">MP</span>
-<span style="font-size:8px;color:var(--gray);text-align:right">GD</span>
-<span style="font-size:8px;color:var(--gray);text-align:right;font-weight:700">Pts</span>
+<span style="font-size:8px;color:var(--gray);text-align:center">Grp</span>
+<span style="font-size:8px;color:var(--gray);text-align:center">MP</span>
+<span style="font-size:8px;color:var(--gray);text-align:center">GD</span>
+<span style="font-size:8px;color:var(--gray);text-align:center;font-weight:700">Pts</span>
 </div>`;
   standings.forEach((r,i)=>{
     if(i===8) html+=`<div class="qualify-cutoff">── TOP 8 ADVANCE · BELOW ELIMINATED ──</div>`;
@@ -2019,9 +2016,9 @@ function renderThirdPlace() {
 ${flagImg(r.team,16)}
 <span class="third-team-name">${TEAM_NAMES[r.team]||r.team}</span>
 <span class="third-grp">${r.group}</span>
-<span class="stat" style="text-align:right">${r.mp}</span>
-<span class="stat gd ${r.gd>0?'pos':r.gd<0?'neg':''}" style="text-align:right">${gdStr}</span>
-<span class="stat pts" style="text-align:right">${r.pts}</span>
+<span class="stat" style="text-align:center">${r.mp}</span>
+<span class="stat gd ${r.gd>0?'pos':r.gd<0?'neg':''}" style="text-align:center">${gdStr}</span>
+<span class="stat pts" style="text-align:center">${r.pts}</span>
 </div>`;
   });
   _prevThirdOrder=standings.map(r=>r.team);
@@ -2644,20 +2641,6 @@ function updateClock() {
   document.getElementById('header-ist').textContent=`${ist.dateStr} · ${ist.time12h} IST`;
 }
 
-function applyScale() {
-  const el=document.getElementById('dashboard');
-  if(window.innerWidth<1024){
-    el.style.transform='';el.style.left='';el.style.top='';
-    document.getElementById('small-warning').style.display='none';
-    return;
-  }
-  const scale=Math.min(window.innerWidth/1920,window.innerHeight/1080);
-  el.style.transform=`scale(${scale})`;
-  el.style.left=((window.innerWidth-1920*scale)/2)+'px';
-  el.style.top=((window.innerHeight-1080*scale)/2)+'px';
-  const warn=document.getElementById('small-warning');
-  warn.style.display=window.innerWidth<1200?'block':'none';
-}
 
 function switchTab(name){
   document.querySelectorAll('#mobile-tab-bar .tab-btn').forEach(b=>{
@@ -2678,8 +2661,6 @@ function renderAll() {
   renderSchedule();
 }
 
-window.addEventListener('resize',applyScale);
-applyScale();
 updateClock();
 setInterval(updateClock,30000);
 renderAll();
