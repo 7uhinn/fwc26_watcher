@@ -1118,7 +1118,7 @@ function _autoFillStep() {
   _lastPredictedId=item.id;
   renderAll();
   _lastPredictedId=null;
-  _autoFillTimer=setTimeout(_autoFillStep,550);
+  _autoFillTimer=setTimeout(_autoFillStep,item.stage==='GROUP'?100:300);
 }
 
 function autoPredictAll() {
@@ -1179,17 +1179,76 @@ function toggleInfoPanel() {
 }
 
 function _tlIcon(type){
-  if(type==='goal')       return '⚽';
-  if(type==='penalty')    return '⚽<span style="font-size:9px;color:var(--muted)">(P)</span>';
-  if(type==='own-goal')   return '⚽<span style="font-size:9px;color:var(--muted)">(OG)</span>';
-  if(type==='yellow')     return '<span class="tl-card-y"></span>';
-  if(type==='red')        return '<span class="tl-card-r"></span>';
-  if(type==='yellow-red') return '<span class="tl-card-y"></span><span class="tl-card-r"></span>';
-  if(type==='var')        return '<span style="font-size:10px;font-weight:700;color:var(--muted)">VAR</span>';
+  if(type==='goal')         return '⚽';
+  if(type==='penalty')      return '⚽<span style="font-size:9px;color:var(--muted)">(P)</span>';
+  if(type==='own-goal')     return '⚽<span style="font-size:9px;color:var(--muted)">(OG)</span>';
+  if(type==='yellow')       return '<span class="tl-card-y"></span>';
+  if(type==='red')          return '<span class="tl-card-r"></span>';
+  if(type==='yellow-red')   return '<span class="tl-card-y"></span><span class="tl-card-r"></span>';
+  if(type==='var')          return '<span style="font-size:10px;font-weight:700;color:var(--amber)">VAR</span>';
+  if(type==='substitution') return '<span style="font-size:11px;color:var(--green)">↑</span>';
   return '';
 }
 
-function openTimeline(matchId){
+function _abbrevName(n){
+  if(!n) return '';
+  const p=n.trim().split(/\s+/);
+  if(p.length<2) return n;
+  return p.slice(0,-1).map(w=>w[0]+'.').join(' ')+' '+p[p.length-1];
+}
+
+function _parseSummaryIncidents(sumData,m){
+  const incs=[];
+  for(const ev of (sumData.keyEvents||[])){
+    const typeKey=(ev.type?.type||'').toLowerCase();
+    const typeText=(ev.type?.text||'').toLowerCase();
+    const minStr=ev.clock?.displayValue||'';
+    let type=null;
+    if(typeKey.startsWith('goal')||ev.scoringPlay){
+      if(ev.ownGoal||typeKey.includes('own')) type='own-goal';
+      else if(ev.penaltyKick||typeKey.includes('penalty')) type='penalty';
+      else type='goal';
+    } else if(typeKey==='yellow-card'||typeText==='yellow card') type='yellow';
+    else if(typeKey==='red-card'||typeText==='red card') type='red';
+    else if(typeKey==='yellow-red-card'||(typeText.includes('yellow')&&typeText.includes('red'))) type='yellow-red';
+    else if(typeKey==='substitution') type='substitution';
+    else if(typeKey.includes('var')||typeText.includes('var')) type='var';
+    if(!type) continue;
+    const teamId=ev.team?.id;
+    let side=teamId===m.espnHomeTeamId?'home':teamId===m.espnAwayTeamId?'away':null;
+    if(!side&&type!=='var') continue;
+    const parts=ev.participants||[];
+    const player=_abbrevName(parts[0]?.athlete?.displayName);
+    const assist=(type==='goal'||type==='penalty')&&parts[1]?_abbrevName(parts[1].athlete?.displayName):null;
+    const playerOut=type==='substitution'&&parts[1]?_abbrevName(parts[1].athlete?.displayName):null;
+    const varNote=type==='var'?(ev.text||null):null;
+    incs.push({minStr,type,player,team:side,assist,playerOut,varNote});
+  }
+  return incs;
+}
+
+function _renderIncidentRows(incidents){
+  return incidents.map(inc=>{
+    const icon=_tlIcon(inc.type);
+    let content;
+    if(inc.type==='substitution'){
+      const inLine=`${icon} <span style="color:var(--green)">${inc.player||''}</span>`;
+      const outLine=inc.playerOut?`<br><span style="font-size:10px;color:var(--red)">↓ ${inc.playerOut}</span>`:'';
+      content=inLine+outLine;
+    } else {
+      content=inc.player?`${icon} ${inc.player}`:icon;
+      if((inc.type==='goal'||inc.type==='penalty')&&inc.assist)
+        content+=`<br><span style="font-size:10px;color:var(--muted)">🅰 ${inc.assist}</span>`;
+      if(inc.type==='var'&&inc.varNote)
+        content+=`<br><span style="font-size:9px;color:var(--muted)">${inc.varNote}</span>`;
+    }
+    const hc=inc.team==='home'?`<div class="tl-home-evt">${content}</div>`:'<div class="tl-home-evt"></div>';
+    const ac=inc.team==='away'?`<div class="tl-away-evt">${content}</div>`:'<div class="tl-away-evt"></div>';
+    return `<div class="tl-row">${hc}<div class="tl-min">${inc.minStr}</div>${ac}</div>`;
+  }).join('');
+}
+
+async function openTimeline(matchId){
   const m=MATCHES.find(x=>x.id===matchId);
   if(!m) return;
   const homeName=TEAM_NAMES[m.home]||m.home||m.homeSlot||'TBD';
@@ -1203,24 +1262,34 @@ function openTimeline(matchId){
     if(m.pen&&m.penHome!=null) sc=`(${m.penHome}) ${m.homeScore} – ${m.awayScore} (${m.penAway})`;
     const suffix=m.pen?' <span style="font-size:11px;color:var(--muted)">pso</span>':m.aet?' <span style="font-size:11px;color:var(--muted)">aet</span>':'';
     sr.innerHTML=sc+suffix;sr.style.display='';
-  }else{sr.style.display='none';}
+  } else {sr.style.display='none';}
   document.getElementById('tl-home-label').textContent=(m.home||'').toUpperCase();
   document.getElementById('tl-away-label').textContent=(m.away||'').toUpperCase();
-  const evEl=document.getElementById('tl-events');
-  const incidents=m.incidents||[];
-  if(incidents.length===0){
-    const msg=m.status==='SCHEDULED'?"Match hasn't kicked off yet.":'No event data available.';
-    evEl.innerHTML=`<div class="tl-empty">${msg}</div>`;
-  }else{
-    evEl.innerHTML=incidents.map(inc=>{
-      const icon=_tlIcon(inc.type);
-      const txt=inc.player?`${icon} ${inc.player}`:icon;
-      const homeCell=inc.team==='home'?`<div class="tl-home-evt">${txt}</div>`:'<div class="tl-home-evt"></div>';
-      const awayCell=inc.team==='away'?`<div class="tl-away-evt">${txt}</div>`:'<div class="tl-away-evt"></div>';
-      return `<div class="tl-row">${homeCell}<div class="tl-min">${inc.minStr}</div>${awayCell}</div>`;
-    }).join('');
-  }
   document.getElementById('match-timeline').classList.add('open');
+  const evEl=document.getElementById('tl-events');
+  if(m.espnId&&(m.status==='FINISHED'||m.status==='IN_PLAY')){
+    evEl.innerHTML='<div class="tl-empty" style="padding:16px">Loading events…</div>';
+    try{
+      const resp=await fetch(
+        `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${m.espnId}`,
+        {signal:AbortSignal.timeout(6000)}
+      );
+      const sumData=await resp.json();
+      const incs=_parseSummaryIncidents(sumData,m);
+      evEl.innerHTML=incs.length?_renderIncidentRows(incs):'<div class="tl-empty">No event data available.</div>';
+    } catch(e){
+      const incs=m.incidents||[];
+      evEl.innerHTML=incs.length?_renderIncidentRows(incs):'<div class="tl-empty">No event data available.</div>';
+    }
+  } else {
+    const incs=m.incidents||[];
+    if(!incs.length){
+      const msg=m.status==='SCHEDULED'?"Match hasn't kicked off yet.":'No event data available.';
+      evEl.innerHTML=`<div class="tl-empty">${msg}</div>`;
+    } else {
+      evEl.innerHTML=_renderIncidentRows(incs);
+    }
+  }
 }
 
 function closeTimeline(){
@@ -2614,6 +2683,9 @@ function _applyEvents(events){
       if(match.home===hCode){match.homeScore=hScore;match.awayScore=aScore;match.penHome=penH;match.penAway=penA;}
       else{match.homeScore=aScore;match.awayScore=hScore;match.penHome=penA;match.penAway=penH;}
       match.status=state==='post'?'FINISHED':'IN_PLAY';
+      match.espnId=ev.id;
+      match.espnHomeTeamId=hc.team?.id;
+      match.espnAwayTeamId=ac.team?.id;
       match.clock=ev.status?.displayClock||null;
       match.aet=isAET||isPen;
       match.pen=isPen;
@@ -2646,9 +2718,13 @@ function _applyEvents(events){
         else if(d.redCard)                    type='red';
         else if(d.yellowCard)                 type='yellow';
         else if(txt.includes('var'))          type='var';
+        else if(txt.includes('substitut'))    type='substitution';
         if(!type) return;
         if(type==='red'||type==='yellow-red'){if(side==='home')rcH++;else rcA++;}
-        incidents.push({minStr,type,player,team:side});
+        const assist=(d.scoringPlay&&!d.ownGoal)?(d.athletesInvolved?.[1]?.shortName||d.athletesInvolved?.[1]?.displayName||null):null;
+        const playerOut=type==='substitution'?(d.athletesInvolved?.[1]?.shortName||d.athletesInvolved?.[1]?.displayName||null):null;
+        const varNote=type==='var'?(d.text||null):null;
+        incidents.push({minStr,type,player,team:side,assist,playerOut,varNote});
       });
       match.incidents=incidents;
       match.redCardsHome=rcH;
