@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>FIFA World Cup 2026 — Live Dashboard</title>
 <!--
   FREE API CANDIDATES (plug in fetchLiveData to swap):
@@ -469,7 +469,8 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 
   /* ── GROUPS TAB: 3-col grid + proportional split, zero outer scroll ── */
   #left-panel.tab-active{
-    display:flex;flex-direction:column;overflow:hidden;padding:4px;gap:4px;
+    display:flex;flex-direction:column;overflow:hidden;
+    padding:4px 4px max(8px,env(safe-area-inset-bottom)) 4px;gap:4px;
   }
   #groups-grid{
     grid-template-columns:repeat(3,1fr)!important;
@@ -499,14 +500,20 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
   .third-row{flex:1!important;height:auto!important;min-height:0!important;}
   #third-section .flag-img{width:13px!important;height:auto!important;}
 
-  /* ── BRACKET TAB: scale SVG to fit viewport, no scroll ── */
-  #center-panel.tab-active{
-    display:flex;overflow:hidden;align-items:center;justify-content:center;
+  /* ── BRACKET TAB: hide SVG, show mobile grid ── */
+  #center-panel.tab-active{display:flex;overflow:hidden;flex-direction:column;}
+  #bracket-title{display:none!important;}
+  #bracket-svg{display:none!important;}
+  #mobile-bracket{
+    display:flex!important;
+    padding-bottom:max(6px,env(safe-area-inset-bottom))!important;
   }
-  #bracket-svg{width:100%!important;height:100%!important;flex:1!important;}
 
   /* ── SCHEDULE TAB: hide venue line, tighter cards ── */
-  #right-panel.tab-active{display:flex;flex-direction:column;}
+  #right-panel.tab-active{
+    display:flex;flex-direction:column;
+    padding-bottom:max(8px,env(safe-area-inset-bottom))!important;
+  }
   #right-panel.tab-active #schedule-list{flex:1;overflow-y:auto;}
   .card-foot-sub{display:none!important;}
   .match-card{padding:4px 7px 3px!important;margin-bottom:3px!important;}
@@ -521,6 +528,38 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 @media(min-width:1024px) and (max-width:1699px){
   #groups-grid{grid-template-columns:repeat(2,1fr)!important;}
 }
+/* ── MOBILE BRACKET ── */
+#mobile-bracket{
+  display:none;flex:1;flex-direction:column;
+  padding:4px;gap:3px;overflow:hidden;min-height:0;
+}
+.mb-section{display:flex;flex-direction:column;gap:2px;min-height:0;}
+.mb-section.mb-r32{flex:4;}
+.mb-section.mb-r16{flex:2;}
+.mb-section.mb-qf,.mb-section.mb-sf,.mb-section.mb-fin{flex:1;}
+.mb-lbl{
+  font-size:8px;font-weight:700;color:var(--accent);
+  text-transform:uppercase;letter-spacing:1.5px;flex-shrink:0;
+}
+.mb-grid{flex:1;display:grid;gap:2px;min-height:0;grid-auto-rows:1fr;}
+.mb-g4{grid-template-columns:repeat(4,1fr);}
+.mb-g2{grid-template-columns:repeat(2,1fr);}
+.mb-match{
+  display:flex;flex-direction:column;min-height:0;height:100%;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:3px;padding:2px 3px;gap:0;overflow:hidden;
+}
+.mb-match.mb-live{border-color:var(--gold);animation:liveborder 2s ease-in-out infinite;}
+.mb-match.mb-done .mb-sc{color:var(--accent);font-weight:700;}
+.mb-team{display:flex;align-items:center;gap:2px;flex:1;min-height:0;overflow:hidden;}
+.mb-team.mb-win{color:var(--text);font-weight:700;}
+.mb-team.mb-loss{opacity:.38;}
+.mb-sc{
+  font-size:8.5px;color:var(--muted);text-align:center;
+  flex-shrink:0;font-variant-numeric:tabular-nums;line-height:1;padding:1px 0;
+}
+.mb-nm{font-size:8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mb-match .flag-img{width:11px!important;height:auto!important;flex-shrink:0;}
 #match-timeline{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:310;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
 #match-timeline.open{opacity:1;pointer-events:all;}
 .tl-modal{background:var(--card);border:1px solid var(--border);border-radius:10px;width:480px;max-width:calc(100vw - 24px);max-height:80dvh;display:flex;flex-direction:column;overflow:hidden;}
@@ -617,6 +656,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
       <svg id="bracket-svg" viewBox="0 0 760 1034" preserveAspectRatio="xMidYMid meet">
         <g id="bracket-root"></g>
       </svg>
+      <div id="mobile-bracket"></div>
     </div>
 
     <div id="right-panel">
@@ -2675,11 +2715,67 @@ function switchTab(name){
   document.getElementById(map[name])?.classList.add('tab-active');
 }
 
+function renderMobileBracket() {
+  const el=document.getElementById('mobile-bracket');
+  if(!el) return;
+
+  const stMap={};
+  for(const g of 'ABCDEFGHIJKL') stMap[g]=computeGroupStandings(g);
+  const thirdRanked=computeThirdPlaceStandings();
+
+  const stages=[
+    {key:'R32', cls:'mb-r32', lbl:'Round of 32', grid:'mb-g4', ids:[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88]},
+    {key:'R16', cls:'mb-r16', lbl:'Round of 16', grid:'mb-g4', ids:[89,90,91,92,93,94,95,96]},
+    {key:'QF',  cls:'mb-qf',  lbl:'Quarterfinals', grid:'mb-g4', ids:[97,98,99,100]},
+    {key:'SF',  cls:'mb-sf',  lbl:'Semifinals + 3rd Place', grid:'mb-g4', ids:[101,102,103,104]},
+  ];
+
+  function teamCell(code, slot, isWin, isLoss) {
+    const cls='mb-team'+(isWin?' mb-win':isLoss?' mb-loss':'');
+    const flag=code?flagImg(code,11):'';
+    const nm=`<span class="mb-nm">${code||slot||'TBD'}</span>`;
+    return `<div class="${cls}">${flag}${nm}</div>`;
+  }
+
+  function matchCard(m) {
+    const hc=resolveSlot(m.homeSlot,stMap,thirdRanked);
+    const ac=resolveSlot(m.awaySlot,stMap,thirdRanked);
+    const s=getScoreFor(m);
+    const live=m.status==='IN_PLAY'||m.status==='HT';
+    const done=m.status==='FINISHED';
+    const hasScore=s.homeScore!==null&&s.awayScore!==null;
+    const hWin=done&&hasScore&&s.homeScore>s.awayScore;
+    const aWin=done&&hasScore&&s.awayScore>s.homeScore;
+    let cardCls='mb-match'+(live?' mb-live':done?' mb-done':'');
+    let sc='vs';
+    if(hasScore) sc=`${s.homeScore}–${s.awayScore}`;
+    return `<div class="${cardCls}">
+${teamCell(hc,m.homeSlot,hWin,!hWin&&done&&hasScore)}
+<div class="mb-sc">${sc}</div>
+${teamCell(ac,m.awaySlot,aWin,!aWin&&done&&hasScore)}
+</div>`;
+  }
+
+  let html='';
+  for(const st of stages) {
+    const matches=MATCHES.filter(m=>st.ids.includes(m.id));
+    // SF row: show SF pair then 3rd/Final pair side by side
+    let gridHtml='';
+    for(const m of matches) gridHtml+=matchCard(m);
+    html+=`<div class="mb-section ${st.cls}">
+<div class="mb-lbl">${st.lbl}</div>
+<div class="mb-grid ${st.grid}">${gridHtml}</div>
+</div>`;
+  }
+  el.innerHTML=html;
+}
+
 function renderAll() {
   _annexCCache=null; // invalidate so computeAnnexC recomputes each render cycle
   renderGroups();
   renderThirdPlace();
   renderBracket();
+  renderMobileBracket();
   renderSchedule();
 }
 
