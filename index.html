@@ -43,6 +43,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
   color:var(--gold);text-transform:uppercase;flex-shrink:0;
 }
 #dash-header .title span{color:var(--accent);font-size:10px;margin-left:4px;}
+.title-short{display:none;}
 #header-ist{font-size:11px;color:var(--muted);flex-shrink:0;}
 #header-updated{font-size:10px;color:var(--gray);margin-left:auto;}
 #live-dot{
@@ -140,8 +141,9 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 #groups-grid{
   display:grid;
   grid-template-columns:repeat(3,1fr);
+  grid-auto-rows:1fr;
   gap:4px;
-  flex:0 0 auto;
+  flex:0 0 62%;
   overflow:hidden;
 }
 .group-card{
@@ -164,7 +166,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 .team-row{
   display:grid;
   grid-template-columns:16px 1fr 16px 13px 13px 13px 20px 18px;
-  column-gap:2px;align-items:center;height:16px;
+  column-gap:2px;align-items:center;flex:1;height:auto;min-height:14px;
   font-size:10px;font-variant-numeric:tabular-nums;
   border-radius:2px;padding:0 2px;margin-bottom:0;
 }
@@ -458,7 +460,9 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
     height:auto;flex-wrap:nowrap;gap:5px;padding:5px 8px;flex-shrink:0;overflow:hidden;
   }
   #dash-header .title{font-size:11px;letter-spacing:1px;}
-  #header-updated,#small-warning,#header-ist,#auto-fill-btn,#reset-pred-btn{display:none!important;}
+  .title-full{display:none;}
+  .title-short{display:inline;}
+  #header-updated,#small-warning,#header-ist{display:none!important;}
 
   #mobile-tab-bar{display:flex;}
   #panels{height:auto;flex:1;overflow:hidden;position:relative;}
@@ -524,7 +528,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
   .pred-modal{width:calc(100% - 24px)!important;max-width:400px;}
   .tl-modal{width:calc(100% - 24px)!important;max-height:calc(100dvh - 40px);}
 }
-/* ─── NARROW DESKTOP (1024–1699px): 2-column group grid ─── */
+/* ─── NARROW DESKTOP (1024–1699px): 2-column group grid + mobile bracket ─── */
 @media(min-width:1024px) and (max-width:1699px){
   #groups-grid{grid-template-columns:repeat(2,1fr)!important;}
 }
@@ -587,7 +591,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 <div id="dashboard">
 
   <header id="dash-header">
-    <div class="title">FIFA World Cup 2026<span>™</span></div>
+    <div class="title"><span class="title-full">FIFA World Cup 2026<span>™</span></span><span class="title-short">FWC 2026</span></div>
     <div id="header-ist"></div>
     <div id="live-dot"></div>
     <button id="update-btn" onclick="fetchAndUpdate()">↻ Update</button>
@@ -653,7 +657,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
         Knockout Bracket
         <span style="font-size:8px;color:var(--gray);font-weight:400;letter-spacing:0">R32 → R16 → QF → SF → Final</span>
       </div>
-      <svg id="bracket-svg" viewBox="0 0 760 1034" preserveAspectRatio="xMidYMid meet">
+      <svg id="bracket-svg" viewBox="0 0 960 1034" preserveAspectRatio="xMidYMid meet">
         <g id="bracket-root"></g>
       </svg>
       <div id="mobile-bracket"></div>
@@ -2187,12 +2191,25 @@ function resolveSlot(slot, stMap, thirdRanked) {
 }
 
 function renderBracket() {
+  // Scale SVG width to match center-panel aspect ratio so bracket fills the space
+  const panelEl=document.getElementById('center-panel');
+  const titleEl=document.getElementById('bracket-title');
+  const svgEl=document.getElementById('bracket-svg');
+  const panelW=Math.max(280,panelEl.clientWidth-4);
+  const titleH=titleEl&&titleEl.offsetHeight>0?titleEl.offsetHeight:20;
+  const panelH=Math.max(400,panelEl.clientHeight-titleH-4);
+  const svgH=1034;
+  const svgW=Math.max(600,Math.min(1100,Math.round(panelW*svgH/panelH)));
+  svgEl.setAttribute('viewBox',`0 0 ${svgW} ${svgH}`);
+  function hx(v){return Math.round(v*svgW/960);}
+  const BW=hx(160);
+
   const COLS=[
-    {l:0,   r:128},  // R32
-    {l:158, r:286},  // R16
-    {l:316, r:444},  // QF
-    {l:474, r:602},  // SF
-    {l:622, r:750},  // Final
+    {l:hx(0),   r:hx(160)},  // R32
+    {l:hx(192), r:hx(352)},  // R16
+    {l:hx(384), r:hx(544)},  // QF
+    {l:hx(576), r:hx(736)},  // SF
+    {l:hx(768), r:hx(928)},  // Final
   ];
   const MH=40;
   const r32Y=Array.from({length:16},(_,i)=>18+Math.floor(i/2)*125+(i%2)*48);
@@ -2211,7 +2228,7 @@ function renderBracket() {
 
   // Round labels
   ['R32','R16','QF','SF','FINAL'].forEach((lbl,ci)=>{
-    svgLines+=`<text class="br-round-label" x="${COLS[ci].l+64}" y="10" text-anchor="middle">${lbl}</text>`;
+    svgLines+=`<text class="br-round-label" x="${COLS[ci].l+hx(80)}" y="10" text-anchor="middle">${lbl}</text>`;
   });
 
   // null=no result, true=top(home) won, false=bottom(away) won
@@ -2272,7 +2289,7 @@ function renderBracket() {
 
   // Connector with lit overlay for each finished child match
   function connector(ci, y0, y1, py, topDone, bottomDone) {
-    const xR=COLS[ci].r, xE=xR+15, xP=COLS[ci+1].l;
+    const xR=COLS[ci].r, xE=xR+hx(16), xP=COLS[ci+1].l;
     const cy0=y0+20, cy1=y1+20, mY=py+20;
     // Base dim lines
     let out=
@@ -2310,7 +2327,7 @@ function renderBracket() {
     const tc=bm?.home||resolveSlot(bm?.homeSlot,stMap,thirdRanked);
     const bc=bm?.away||resolveSlot(bm?.awaySlot,stMap,thirdRanked);
     const s0=getScoreFor(bm);
-    svgLines+=matchBlock(COLS[0].l,y,128,tc,bm?.homeSlot||'TBD',bc,bm?.awaySlot||'TBD',
+    svgLines+=matchBlock(COLS[0].l,y,BW,tc,bm?.homeSlot||'TBD',bc,bm?.awaySlot||'TBD',
       s0.homeScore,s0.awayScore,bm?.status==='IN_PLAY',false,!bm?.home,winnerIsTop(bm),bm);
   }
 
@@ -2326,7 +2343,7 @@ function renderBracket() {
     const tc=bm?.home||resolveSlot(bm?.homeSlot,stMap,thirdRanked);
     const bc=bm?.away||resolveSlot(bm?.awaySlot,stMap,thirdRanked);
     const s1=getScoreFor(bm);
-    svgLines+=matchBlock(COLS[1].l,r16Y[j],128,tc,bm?.homeSlot||'TBD',bc,bm?.awaySlot||'TBD',
+    svgLines+=matchBlock(COLS[1].l,r16Y[j],BW,tc,bm?.homeSlot||'TBD',bc,bm?.awaySlot||'TBD',
       s1.homeScore,s1.awayScore,bm?.status==='IN_PLAY',false,!bm?.home,winnerIsTop(bm),bm);
   }
 
@@ -2339,7 +2356,7 @@ function renderBracket() {
     const tc=bm?.home||resolveSlot(bm?.homeSlot,stMap,thirdRanked);
     const bc=bm?.away||resolveSlot(bm?.awaySlot,stMap,thirdRanked);
     const s2=getScoreFor(bm);
-    svgLines+=matchBlock(COLS[2].l,qfY[k],128,tc,bm?.homeSlot||'TBD',bc,bm?.awaySlot||'TBD',
+    svgLines+=matchBlock(COLS[2].l,qfY[k],BW,tc,bm?.homeSlot||'TBD',bc,bm?.awaySlot||'TBD',
       s2.homeScore,s2.awayScore,bm?.status==='IN_PLAY',false,!bm?.home,winnerIsTop(bm),bm);
   }
 
@@ -2352,7 +2369,7 @@ function renderBracket() {
     const tc=bm?.home||resolveSlot(bm?.homeSlot,stMap,thirdRanked);
     const bc=bm?.away||resolveSlot(bm?.awaySlot,stMap,thirdRanked);
     const s3=getScoreFor(bm);
-    svgLines+=matchBlock(COLS[3].l,sfY[n],128,tc,bm?.homeSlot||'TBD',bc,bm?.awaySlot||'TBD',
+    svgLines+=matchBlock(COLS[3].l,sfY[n],BW,tc,bm?.homeSlot||'TBD',bc,bm?.awaySlot||'TBD',
       s3.homeScore,s3.awayScore,bm?.status==='IN_PLAY',false,!bm?.home,winnerIsTop(bm),bm);
   }
 
@@ -2365,7 +2382,7 @@ function renderBracket() {
   const sF=getScoreFor(finM);
   const finWit=winnerIsTop(finM);
   const champion=finWit===true?ftc:finWit===false?fbc:null;
-  const fcx=COLS[4].l+64;
+  const fcx=COLS[4].l+hx(80);
   if(champion) {
     const iso=FLAG_MAP[champion];
     const cname=TEAM_NAMES[champion]||champion;
@@ -2375,16 +2392,16 @@ function renderBracket() {
   } else {
     svgLines+=`<text class="br-round-label" x="${fcx}" y="${finalY-6}" text-anchor="middle" fill="var(--gold)">🏆</text>`;
   }
-  svgLines+=matchBlock(COLS[4].l,finalY,128,ftc,'W SF-1',fbc,'W SF-2',
+  svgLines+=matchBlock(COLS[4].l,finalY,BW,ftc,'W SF-1',fbc,'W SF-2',
     sF.homeScore,sF.awayScore,finM?.status==='IN_PLAY',true,!finM?.home,finWit,finM);
 
   // ── 3rd Place
   const trdM=MATCHES.find(m=>m.stage==='THIRD');
-  svgLines+=`<text class="br-text-tbd" x="${COLS[4].l+64}" y="${thirdY-5}" text-anchor="middle">3rd Place</text>`;
+  svgLines+=`<text class="br-text-tbd" x="${COLS[4].l+hx(80)}" y="${thirdY-5}" text-anchor="middle">3rd Place</text>`;
   const ttc=trdM?.home||resolveSlot(trdM?.homeSlot,stMap,thirdRanked);
   const tbc=trdM?.away||resolveSlot(trdM?.awaySlot,stMap,thirdRanked);
   const sT=getScoreFor(trdM);
-  svgLines+=matchBlock(COLS[4].l,thirdY,128,ttc,'L SF-1',tbc,'L SF-2',
+  svgLines+=matchBlock(COLS[4].l,thirdY,BW,ttc,'L SF-1',tbc,'L SF-2',
     sT.homeScore,sT.awayScore,trdM?.status==='IN_PLAY',false,!trdM?.home,winnerIsTop(trdM),trdM);
 
   document.getElementById('bracket-root').innerHTML=svgLines;
@@ -2723,51 +2740,191 @@ function renderMobileBracket() {
   for(const g of 'ABCDEFGHIJKL') stMap[g]=computeGroupStandings(g);
   const thirdRanked=computeThirdPlaceStandings();
 
-  const stages=[
-    {key:'R32', cls:'mb-r32', lbl:'Round of 32', grid:'mb-g4', ids:[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88]},
-    {key:'R16', cls:'mb-r16', lbl:'Round of 16', grid:'mb-g4', ids:[89,90,91,92,93,94,95,96]},
-    {key:'QF',  cls:'mb-qf',  lbl:'Quarterfinals', grid:'mb-g4', ids:[97,98,99,100]},
-    {key:'SF',  cls:'mb-sf',  lbl:'Semifinals + 3rd Place', grid:'mb-g4', ids:[101,102,103,104]},
-  ];
+  // Same visual ordering as desktop renderBracket()
+  const r32Ms=MATCHES.filter(m=>m.stage==='R32');
+  const R32_VIS=[1,4,0,2,10,11,8,9,3,5,6,7,13,15,12,14];
+  const r32Ord=R32_VIS.map(i=>r32Ms[i]);
+  const r16Ms=MATCHES.filter(m=>m.stage==='R16');
+  const R16_VIS=[0,1,4,5,2,3,6,7];
+  const r16Ord=R16_VIS.map(i=>r16Ms[i]);
+  const qfMs=MATCHES.filter(m=>m.stage==='QF');
+  const sfMs=MATCHES.filter(m=>m.stage==='SF');
+  const trdM=MATCHES.find(m=>m.stage==='THIRD');
+  const finM=MATCHES.find(m=>m.stage==='FINAL');
 
-  function teamCell(code, slot, isWin, isLoss) {
-    const cls='mb-team'+(isWin?' mb-win':isLoss?' mb-loss':'');
-    const flag=code?flagImg(code,11):'';
-    const nm=`<span class="mb-nm">${code||slot||'TBD'}</span>`;
-    return `<div class="${cls}">${flag}${nm}</div>`;
+  // Layout constants (viewBox 376×700)
+  const W=376, COLS=8, cw=W/COLS; // col width = 47
+  const mH=56; // match card height
+  const lH=11; // label height
+  const cH=34; // connector space between rounds
+  const r32gap=4;
+
+  // Y positions
+  const yR32lbl=6;
+  const yR32a=yR32lbl+lH; // row1 top
+  const yR32b=yR32a+mH+r32gap; // row2 top
+  const yConnR32R16=yR32b+mH; // connector zone start
+  const yR16lbl=yConnR32R16+cH;
+  const yR16=yR16lbl+lH;
+  const yConnR16QF=yR16+mH;
+  const yQFlbl=yConnR16QF+cH;
+  const yQF=yQFlbl+lH;
+  const yConnQFSF=yQF+mH;
+  const ySFlbl=yConnQFSF+cH;
+  const ySF=ySFlbl+lH;
+  const yConnSFFin=ySF+mH;
+  const y3rdlbl=yConnSFFin+cH;
+  const y3rd=y3rdlbl+lH;
+  const yFinlbl=y3rd+mH+4;
+  const yFin=yFinlbl+lH;
+  const svgH=yFin+mH+8;
+
+  function teamRow(code,slot,y,x,w,isWin,isLoss,sz=7) {
+    const iso=code?FLAG_MAP[code]:null;
+    const opacity=isLoss?' opacity=".32"':'';
+    const fill=isWin?'var(--gold)':isLoss?'var(--muted)':'var(--text)';
+    let s='';
+    if(iso) s+=`<image href="https://flagcdn.com/w40/${iso}.png" x="${x+2}" y="${y+2}" width="10" height="7" clip-path="inset(0% round 1px)"${opacity}/>`;
+    else if(code) s+=`<rect x="${x+2}" y="${y+1}" width="10" height="8" rx="1" fill="${FLAG_COLORS[code]||'#334'}"${opacity}/><text x="${x+7}" y="${y+8}" text-anchor="middle" font-size="5" fill="white"${opacity}>${code.slice(0,2)}</text>`;
+    s+=`<text x="${x+14}" y="${y+9}" font-size="${sz}" font-family="-apple-system,BlinkMacSystemFont,sans-serif" fill="${fill}"${opacity}>${code||slot||'TBD'}</text>`;
+    return s;
   }
 
-  function matchCard(m) {
-    const hc=resolveSlot(m.homeSlot,stMap,thirdRanked);
-    const ac=resolveSlot(m.awaySlot,stMap,thirdRanked);
-    const s=getScoreFor(m);
-    const live=m.status==='IN_PLAY'||m.status==='HT';
-    const done=m.status==='FINISHED';
-    const hasScore=s.homeScore!==null&&s.awayScore!==null;
-    const hWin=done&&hasScore&&s.homeScore>s.awayScore;
-    const aWin=done&&hasScore&&s.awayScore>s.homeScore;
-    let cardCls='mb-match'+(live?' mb-live':done?' mb-done':'');
-    let sc='vs';
-    if(hasScore) sc=`${s.homeScore}–${s.awayScore}`;
-    return `<div class="${cardCls}">
-${teamCell(hc,m.homeSlot,hWin,!hWin&&done&&hasScore)}
-<div class="mb-sc">${sc}</div>
-${teamCell(ac,m.awaySlot,aWin,!aWin&&done&&hasScore)}
-</div>`;
+  function matchBlock(x,y,w,bm,hSlot,aSlot,showScore) {
+    const hc=bm?.home||resolveSlot(hSlot,stMap,thirdRanked);
+    const ac=bm?.away||resolveSlot(aSlot,stMap,thirdRanked);
+    const s=getScoreFor(bm);
+    const live=bm?.status==='IN_PLAY'||bm?.status==='HT';
+    const done=bm?.status==='FINISHED';
+    const has=s.homeScore!==null&&s.awayScore!==null;
+    const hWin=done&&has&&s.homeScore>s.awayScore;
+    const aWin=done&&has&&s.awayScore>s.homeScore;
+    const bg=live?'br-final-bg':'br-match-bg';
+    const mid=y+mH/2;
+    let o=`<rect class="${bg}" x="${x+0.5}" y="${y+0.5}" width="${w-1}" height="${mH-1}" rx="2"/>`;
+    if(live) o+=`<circle cx="${x+w-4}" cy="${y+4}" r="2" fill="var(--gold)"><animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite"/></circle>`;
+    o+=`<line class="br-divider" x1="${x}" y1="${mid}" x2="${x+w}" y2="${mid}"/>`;
+    o+=teamRow(hc,hSlot,y,x,w,hWin,!hWin&&done&&has);
+    o+=teamRow(ac,aSlot,y+mH/2,x,w,aWin,!aWin&&done&&has);
+    if(showScore&&has) {
+      const sc=`${s.homeScore}-${s.awayScore}`;
+      o+=`<text x="${x+w-2}" y="${mid+1}" text-anchor="end" font-size="6" font-family="-apple-system,BlinkMacSystemFont,sans-serif" fill="var(--accent)" font-weight="700">${sc}</text>`;
+    }
+    return o;
   }
 
-  let html='';
-  for(const st of stages) {
-    const matches=MATCHES.filter(m=>st.ids.includes(m.id));
-    // SF row: show SF pair then 3rd/Final pair side by side
-    let gridHtml='';
-    for(const m of matches) gridHtml+=matchCard(m);
-    html+=`<div class="mb-section ${st.cls}">
-<div class="mb-lbl">${st.lbl}</div>
-<div class="mb-grid ${st.grid}">${gridHtml}</div>
-</div>`;
+  // Connector lines (V-H-V bracket merge shape)
+  const CN='stroke:#2a3a4a;stroke-width:1;fill:none;'; // dim
+  const CL='stroke:var(--gold);stroke-width:1.2;fill:none;'; // lit
+
+  function vconn(x0,x1,y0,y1,lit0,lit1) {
+    const xm=(x0+x1)/2, ym=(y0+y1)/2;
+    let o=`<line style="${CN}" x1="${x0}" y1="${y0}" x2="${x0}" y2="${ym}"/>`;
+    o+=`<line style="${CN}" x1="${x1}" y1="${y0}" x2="${x1}" y2="${ym}"/>`;
+    o+=`<line style="${CN}" x1="${x0}" y1="${ym}" x2="${x1}" y2="${ym}"/>`;
+    o+=`<line style="${CN}" x1="${xm}" y1="${ym}" x2="${xm}" y2="${y1}"/>`;
+    if(lit0) {
+      o+=`<line style="${CL}" x1="${x0}" y1="${y0}" x2="${x0}" y2="${ym}"/>`;
+      o+=`<line style="${CL}" x1="${x0}" y1="${ym}" x2="${xm}" y2="${ym}"/>`;
+      o+=`<line style="${CL}" x1="${xm}" y1="${ym}" x2="${xm}" y2="${y1}"/>`;
+    }
+    if(lit1) {
+      o+=`<line style="${CL}" x1="${x1}" y1="${y0}" x2="${x1}" y2="${ym}"/>`;
+      o+=`<line style="${CL}" x1="${x1}" y1="${ym}" x2="${xm}" y2="${ym}"/>`;
+      if(!lit0) o+=`<line style="${CL}" x1="${xm}" y1="${ym}" x2="${xm}" y2="${y1}"/>`;
+    }
+    return o;
   }
-  el.innerHTML=html;
+
+  // Simple straight connector (R32 row2 → R16)
+  function sconn(x,y0,y1,lit) {
+    let o=`<line style="${CN}" x1="${x}" y1="${y0}" x2="${x}" y2="${y1}"/>`;
+    if(lit) o+=`<line style="${CL}" x1="${x}" y1="${y0}" x2="${x}" y2="${y1}"/>`;
+    return o;
+  }
+
+  function lbl(text,x,y,full=false) {
+    return `<text x="${x}" y="${y}" text-anchor="middle" font-size="7" font-weight="700" font-family="-apple-system,BlinkMacSystemFont,sans-serif" fill="${full?'var(--gold)':'var(--accent)'}" letter-spacing="1">${text}</text>`;
+  }
+
+  let s='';
+
+  // ── Round labels
+  s+=lbl('ROUND OF 32',W/2,yR32lbl+8);
+  s+=lbl('ROUND OF 16',W/2,yR16lbl+8);
+  s+=lbl('QUARTERFINALS',W/2,yQFlbl+8);
+  s+=lbl('SEMIFINALS',W/2,ySFlbl+8);
+  s+=lbl('3RD PLACE',W/2,y3rdlbl+8);
+  s+=lbl('🏆 FINAL',W/2,yFinlbl+8,true);
+
+  // ── R32 — 2 rows of 8
+  for(let k=0;k<8;k++) {
+    const x=k*cw;
+    const ma=r32Ord[k*2], mb=r32Ord[k*2+1];
+    s+=matchBlock(x,yR32a,cw,ma,ma?.homeSlot||'?',ma?.awaySlot||'?',false);
+    s+=matchBlock(x,yR32b,cw,mb,mb?.homeSlot||'?',mb?.awaySlot||'?',false);
+    // Pairing bracket mark on right edge
+    const rx=x+cw-1.5;
+    const midA=yR32a+mH/2, midB=yR32b+mH/2;
+    const midAB=(midA+midB)/2;
+    s+=`<line style="${CN}" x1="${rx}" y1="${midA}" x2="${rx}" y2="${midB}"/>`;
+    // R32 → R16 straight connector from mid of right-edge bracket
+    const cx=x+cw/2;
+    const litA=getScoreFor(ma).homeScore!==null, litB=getScoreFor(mb).homeScore!==null;
+    const litDown=litA&&litB;
+    s+=`<line style="${CN}" x1="${rx}" y1="${midAB}" x2="${cx}" y2="${midAB}"/>`;
+    s+=sconn(cx,yR32b+mH,yR16,litDown);
+  }
+
+  // ── R16
+  for(let k=0;k<8;k++) {
+    const x=k*cw;
+    const m=r16Ord[k];
+    s+=matchBlock(x,yR16,cw,m,m?.homeSlot||'?',m?.awaySlot||'?',false);
+  }
+
+  // ── R16 → QF connectors (pairs: 0+1→QF0, 2+3→QF1, 4+5→QF2, 6+7→QF3)
+  for(let k=0;k<4;k++) {
+    const x0=(k*2+0.5)*cw, x1=(k*2+1.5)*cw;
+    const lit0=getScoreFor(r16Ord[k*2]).homeScore!==null;
+    const lit1=getScoreFor(r16Ord[k*2+1]).homeScore!==null;
+    s+=vconn(x0,x1,yR16+mH,yQF,lit0,lit1);
+  }
+
+  // ── QF
+  for(let k=0;k<4;k++) {
+    const x=k*2*cw;
+    const m=qfMs[k];
+    s+=matchBlock(x,yQF,2*cw,m,m?.homeSlot||'?',m?.awaySlot||'?',true);
+  }
+
+  // ── QF → SF connectors (pairs: 0+1→SF0, 2+3→SF1)
+  for(let k=0;k<2;k++) {
+    const x0=(k*2+1)*cw, x1=(k*2+3)*cw;
+    const lit0=getScoreFor(qfMs[k*2]).homeScore!==null;
+    const lit1=getScoreFor(qfMs[k*2+1]).homeScore!==null;
+    s+=vconn(x0,x1,yQF+mH,ySF,lit0,lit1);
+  }
+
+  // ── SF
+  for(let k=0;k<2;k++) {
+    const x=k*4*cw;
+    const m=sfMs[k];
+    s+=matchBlock(x,ySF,4*cw,m,m?.homeSlot||'?',m?.awaySlot||'?',true);
+  }
+
+  // ── SF → Final connector
+  const sfLit0=getScoreFor(sfMs[0]).homeScore!==null;
+  const sfLit1=getScoreFor(sfMs[1]).homeScore!==null;
+  s+=vconn(2*cw,6*cw,ySF+mH,yFin,sfLit0,sfLit1);
+
+  // ── 3rd Place
+  s+=matchBlock(0,y3rd,W,trdM,trdM?.homeSlot||'L SF-1',trdM?.awaySlot||'L SF-2',true);
+
+  // ── Final
+  s+=matchBlock(0,yFin,W,finM,finM?.homeSlot||'W SF-1',finM?.awaySlot||'W SF-2',true);
+
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${svgH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block">${s}</svg>`;
 }
 
 function renderAll() {
@@ -2785,6 +2942,8 @@ renderAll();
 scrollToNextMatch();
 fetchAndUpdate();
 if(window.innerWidth<1024) switchTab('groups');
+let _brRszT;
+window.addEventListener('resize',()=>{clearTimeout(_brRszT);_brRszT=setTimeout(renderBracket,200);});
 </script>
 </body>
 </html>
