@@ -591,6 +591,19 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 .tl-tab{flex:1;padding:7px 0;font-size:11px;font-weight:600;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;letter-spacing:.4px;transition:color .15s;}
 .tl-tab.active{color:var(--text);border-bottom-color:var(--amber);}
 .tl-lineups{flex:1;overflow-y:auto;display:none;padding:4px 8px 12px;}
+.tl-facts{flex:1;overflow-y:auto;display:none;padding:4px 12px 12px;}
+.mf-teams{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--amber);padding:8px 0 10px;}
+.mf-poss-vals{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.mf-poss-lbl{font-size:9px;color:var(--muted);}
+.mf-poss-bar{height:8px;border-radius:4px;overflow:hidden;display:flex;margin-bottom:14px;}
+.mf-section{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 0 3px;border-top:1px solid rgba(255,255,255,.06);}
+.mf-row{display:flex;align-items:center;gap:5px;padding:3px 0;}
+.mf-val{width:30px;font-size:10px;font-weight:600;color:var(--text);text-align:right;}
+.mf-val.away{text-align:left;}
+.mf-hbar,.mf-abar{flex:1;height:5px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;display:flex;align-items:stretch;}
+.mf-hbar>div{background:var(--amber);border-radius:2px;}
+.mf-abar>div{background:rgba(255,255,255,.22);border-radius:2px;}
+.mf-lbl{width:88px;text-align:center;font-size:9px;color:var(--muted);white-space:nowrap;}
 .lp-team-tabs{display:flex;gap:6px;padding:6px 0 8px;justify-content:center;}
 .lp-team-tab{padding:5px 20px;font-size:11px;font-weight:600;color:var(--muted);background:rgba(255,255,255,.06);border:none;border-radius:20px;cursor:pointer;transition:color .15s,background .15s;}
 .lp-team-tab.active{color:var(--amber);background:rgba(255,200,0,.12);}
@@ -776,6 +789,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
       <div class="tl-tabs">
         <button class="tl-tab active" data-tab="events" onclick="tlTab('events')">Events</button>
         <button class="tl-tab" data-tab="lineups" onclick="tlTab('lineups')">Lineups</button>
+        <button class="tl-tab" data-tab="facts" onclick="tlTab('facts')">Match Facts</button>
       </div>
       <div class="tl-col-labels" id="tl-col-labels">
         <div id="tl-home-label"></div>
@@ -784,6 +798,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
       </div>
       <div class="tl-events" id="tl-events"></div>
       <div class="tl-lineups" id="tl-lineups"></div>
+      <div class="tl-facts" id="tl-facts"></div>
     </div>
   </div>
 
@@ -796,7 +811,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 // ═══════════════════════════════════════════════════════════════════
 
 const GROUPS = {
-  A:['MEX','ZAF','KOR','CZE'],
+  A:['MEX','RSA','KOR','CZE'],
   B:['CAN','BIH','QAT','SUI'],
   C:['BRA','MAR','HAI','SCO'],
   D:['USA','PAR','AUS','TUR'],
@@ -811,7 +826,7 @@ const GROUPS = {
 };
 
 const TEAM_NAMES = {
-  MEX:'Mexico',ZAF:'South Africa',KOR:'South Korea',CZE:'Czechia',
+  MEX:'Mexico',RSA:'South Africa',KOR:'South Korea',CZE:'Czechia',
   CAN:'Canada',BIH:'Bosnia & Herz.',QAT:'Qatar',SUI:'Switzerland',
   BRA:'Brazil',MAR:'Morocco',HAI:'Haiti',SCO:'Scotland',
   USA:'United States',PAR:'Paraguay',AUS:'Australia',TUR:'Türkiye',
@@ -830,14 +845,14 @@ const FIFA_RANK = {
   GER:9,URU:10,COL:11,MAR:12,USA:13,MEX:14,JPN:15,
   CRO:16,SEN:17,AUS:18,SUI:19,ECU:20,PAR:21,TUR:22,
   NOR:23,SWE:24,ALG:25,AUT:26,GHA:27,SCO:28,TUN:29,
-  IRQ:30,NZL:31,EGY:32,ZAF:33,KOR:34,CZE:35,HAI:36,
+  IRQ:30,NZL:31,EGY:32,RSA:33,KOR:34,CZE:35,HAI:36,
   IRN:37,CAN:38,BIH:39,QAT:40,JOR:41,CPV:42,SAU:43,COD:44,
   UZB:45,PAN:46,CUW:48,CIV:50
 };
 
 // flagcdn.com ISO alpha-2 codes (lowercase)
 const FLAG_MAP = {
-  MEX:'mx',ZAF:'za',KOR:'kr',CZE:'cz',CAN:'ca',BIH:'ba',QAT:'qa',
+  MEX:'mx',RSA:'za',KOR:'kr',CZE:'cz',CAN:'ca',BIH:'ba',QAT:'qa',
   SUI:'ch',BRA:'br',MAR:'ma',HAI:'ht',SCO:'gb-sct',USA:'us',PAR:'py',
   AUS:'au',TUR:'tr',GER:'de',CUW:'cw',CIV:'ci',ECU:'ec',NED:'nl',
   JPN:'jp',SWE:'se',TUN:'tn',BEL:'be',EGY:'eg',IRN:'ir',NZL:'nz',
@@ -848,7 +863,7 @@ const FLAG_MAP = {
 
 // Flag fallback colours (one per team)
 const FLAG_COLORS = {
-  MEX:'#006847',ZAF:'#007A4D',KOR:'#C60C30',CZE:'#D7141A',
+  MEX:'#006847',RSA:'#007A4D',KOR:'#C60C30',CZE:'#D7141A',
   CAN:'#FF0000',BIH:'#002395',QAT:'#8D1B3D',SUI:'#FF0000',
   BRA:'#009C3B',MAR:'#C1272D',HAI:'#00209F',SCO:'#003078',
   USA:'#3C3B6E',PAR:'#D52B1E',AUS:'#00008B',TUR:'#E30A17',
@@ -891,7 +906,7 @@ const ESPN_TO_FIFA = {
   CRO:'CRO',SEN:'SEN',MAR:'MAR',JPN:'JPN',KOR:'KOR',AUS:'AUS',
   URU:'URU',COL:'COL',ECU:'ECU',PAR:'PAR',TUR:'TUR',SAU:'SAU',
   QAT:'QAT',IRN:'IRN',NOR:'NOR',SWE:'SWE',TUN:'TUN',GHA:'GHA',
-  EGY:'EGY',BIH:'BIH',BAH:'BIH',ZAF:'ZAF',RSA:'ZAF',CZE:'CZE',
+  EGY:'EGY',BIH:'BIH',BAH:'BIH',ZAF:'RSA',RSA:'RSA',CZE:'CZE',
   SUI:'SUI',SWI:'SUI',HAI:'HAI',SCO:'SCO',CUW:'CUW',CIV:'CIV',
   NZL:'NZL',CPV:'CPV',IRQ:'IRQ',ALG:'ALG',AUT:'AUT',JOR:'JOR',
   COD:'COD',UZB:'UZB',PAN:'PAN',SEN:'SEN'
@@ -906,12 +921,12 @@ const ESPN_TO_FIFA = {
 // ═══════════════════════════════════════════════════════════════════
 const MATCHES = [
 // ── GROUP A ──────────────────────────────────────────────
-{id:1, stage:'GROUP',group:'A',matchday:1,home:'MEX',away:'ZAF', utcDate:'2026-06-11',utcTime:'19:00',venue:'Estadio Azteca',city:'Mexico City',homeScore:null,awayScore:null,status:'SCHEDULED'},
+{id:1, stage:'GROUP',group:'A',matchday:1,home:'MEX',away:'RSA', utcDate:'2026-06-11',utcTime:'19:00',venue:'Estadio Azteca',city:'Mexico City',homeScore:null,awayScore:null,status:'SCHEDULED'},
 {id:2, stage:'GROUP',group:'A',matchday:1,home:'KOR',away:'CZE', utcDate:'2026-06-12',utcTime:'02:00',venue:'Estadio Akron',city:'Guadalajara',homeScore:null,awayScore:null,status:'SCHEDULED'},
 {id:3, stage:'GROUP',group:'A',matchday:2,home:'MEX',away:'KOR', utcDate:'2026-06-19',utcTime:'01:00',venue:'Estadio Akron',city:'Guadalajara',homeScore:null,awayScore:null,status:'SCHEDULED'},
-{id:4, stage:'GROUP',group:'A',matchday:2,home:'CZE',away:'ZAF', utcDate:'2026-06-18',utcTime:'16:00',venue:'Mercedes-Benz Stadium',city:'Atlanta',homeScore:null,awayScore:null,status:'SCHEDULED'},
+{id:4, stage:'GROUP',group:'A',matchday:2,home:'CZE',away:'RSA', utcDate:'2026-06-18',utcTime:'16:00',venue:'Mercedes-Benz Stadium',city:'Atlanta',homeScore:null,awayScore:null,status:'SCHEDULED'},
 {id:5, stage:'GROUP',group:'A',matchday:3,home:'MEX',away:'CZE', utcDate:'2026-06-25',utcTime:'01:00',venue:'Estadio Azteca',city:'Mexico City',homeScore:null,awayScore:null,status:'SCHEDULED'},
-{id:6, stage:'GROUP',group:'A',matchday:3,home:'ZAF',away:'KOR', utcDate:'2026-06-25',utcTime:'01:00',venue:'Estadio BBVA',city:'Monterrey',homeScore:null,awayScore:null,status:'SCHEDULED'},
+{id:6, stage:'GROUP',group:'A',matchday:3,home:'RSA',away:'KOR', utcDate:'2026-06-25',utcTime:'01:00',venue:'Estadio BBVA',city:'Monterrey',homeScore:null,awayScore:null,status:'SCHEDULED'},
 // ── GROUP B ──────────────────────────────────────────────
 {id:7, stage:'GROUP',group:'B',matchday:1,home:'CAN',away:'BIH', utcDate:'2026-06-12',utcTime:'19:00',venue:'BMO Field',city:'Toronto',homeScore:null,awayScore:null,status:'SCHEDULED'},
 {id:8, stage:'GROUP',group:'B',matchday:1,home:'QAT',away:'SUI', utcDate:'2026-06-13',utcTime:'19:00',venue:"Levi's Stadium",city:'Santa Clara',homeScore:null,awayScore:null,status:'SCHEDULED'},
@@ -1224,6 +1239,13 @@ function _abbrevName(n){
 function _parseSummaryIncidents(sumData,m){
   const incs=[];
   let drinksActive=false;
+  // Build athlete id → shortName so incident names match roster names exactly
+  const _rosterName={};
+  for(const r of (sumData.rosters||[])){
+    for(const p of (r.roster||[])){
+      if(p.athlete?.id&&p.athlete?.shortName) _rosterName[p.athlete.id]=p.athlete.shortName;
+    }
+  }
   const injuredTeams=new Map(); // espnTeamId → clock value when injury delay started
   // Pre-scan: teams that have an explicit "because of an injury" sub → skip heuristic for them
   const explicitInjuryTeams=new Set(
@@ -1279,9 +1301,10 @@ function _parseSummaryIncidents(sumData,m){
     if(!side&&type!=='var'&&type!=='other') continue;
 
     const parts=ev.participants||[];
-    const player=_abbrevName(parts[0]?.athlete?.displayName);
-    const assist=(type==='goal'||type==='penalty')&&parts[1]?_abbrevName(parts[1].athlete?.displayName):null;
-    const playerOut=type==='substitution'&&parts[1]?_abbrevName(parts[1].athlete?.displayName):null;
+    function _pname(part){if(!part) return null;const id=part.athlete?.id;return(id&&_rosterName[id])||_abbrevName(part.athlete?.displayName);}
+    const player=_pname(parts[0]);
+    const assist=(type==='goal'||type==='penalty')&&parts[1]?_pname(parts[1]):null;
+    const playerOut=type==='substitution'&&parts[1]?_pname(parts[1]):null;
 
     // Injury sub: explicit ESPN text wins; heuristic only fires when no explicit sub exists for that team
     let isInjury=false;
@@ -1346,35 +1369,84 @@ function _renderIncidentRows(incidents){
 
 function tlTab(name){
   document.querySelectorAll('.tl-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
-  const isEv=name==='events';
+  const isEv=name==='events';const isFacts=name==='facts';
   document.getElementById('tl-col-labels').style.display=isEv?'':'none';
   document.getElementById('tl-events').style.display=isEv?'':'none';
-  document.getElementById('tl-lineups').style.display=isEv?'none':'block';
+  document.getElementById('tl-lineups').style.display=(!isEv&&!isFacts)?'block':'none';
+  document.getElementById('tl-facts').style.display=isFacts?'block':'none';
 }
 
-function _parseLineups(sumData){
-  return (sumData.rosters||[]).map(r=>({
-    homeAway:r.homeAway,
-    formation:r.formation||'',
-    teamName:r.team?.abbreviation||r.team?.displayName||r.homeAway,
-    starters:(r.roster||[]).filter(p=>p.starter)
-      .sort((a,b)=>Number(a.formationPlace)-Number(b.formationPlace))
-      .map(p=>({
-        name:p.athlete?.shortName||_abbrevName(p.athlete?.displayName||''),
-        jersey:p.jersey||'',
-        subbedOut:!!p.subbedOut,
-        place:Number(p.formationPlace),
-        posAbbr:p.position?.abbreviation||'',
-        rating:_computeRating(p.stats,p.position?.abbreviation||''),
-      })),
-    subsUsed:(r.roster||[]).filter(p=>!p.starter&&p.subbedIn)
-      .map(p=>({
-        name:p.athlete?.shortName||_abbrevName(p.athlete?.displayName||''),
-        rating:_computeRating(p.stats,p.position?.abbreviation||''),
-      })),
-    subsUnused:(r.roster||[]).filter(p=>!p.starter&&!p.subbedIn)
-      .map(p=>p.athlete?.shortName||_abbrevName(p.athlete?.displayName||'')),
-  }));
+function _parseMatchFacts(sumData){
+  const teams=(sumData.boxscore?.teams)||[];
+  if(teams.length<2) return null;
+  const home=teams.find(t=>t.homeAway==='home')||teams[0];
+  const away=teams.find(t=>t.homeAway==='away')||teams[1];
+  function n(team,name){const s=(team.statistics||[]).find(x=>x.name===name);return s?parseFloat(s.displayValue)||0:0;}
+  return {
+    homeAbbr:home.team?.abbreviation||'HOME',
+    awayAbbr:away.team?.abbreviation||'AWAY',
+    poss:[n(home,'possessionPct'),n(away,'possessionPct')],
+    shots:[n(home,'totalShots'),n(away,'totalShots')],
+    onTarget:[n(home,'shotsOnTarget'),n(away,'shotsOnTarget')],
+    corners:[n(home,'wonCorners'),n(away,'wonCorners')],
+    blocked:[n(home,'blockedShots'),n(away,'blockedShots')],
+    passes:[n(home,'totalPasses'),n(away,'totalPasses')],
+    passAcc:[n(home,'passPct'),n(away,'passPct')],
+    crosses:[n(home,'totalCrosses'),n(away,'totalCrosses')],
+    crossAcc:[n(home,'crossPct'),n(away,'crossPct')],
+    saves:[n(home,'saves'),n(away,'saves')],
+    tackles:[n(home,'effectiveTackles'),n(away,'effectiveTackles')],
+    interceptions:[n(home,'interceptions'),n(away,'interceptions')],
+    clearances:[n(home,'effectiveClearance'),n(away,'effectiveClearance')],
+    fouls:[n(home,'foulsCommitted'),n(away,'foulsCommitted')],
+    offsides:[n(home,'offsides'),n(away,'offsides')],
+    yellows:[n(home,'yellowCards'),n(away,'yellowCards')],
+    reds:[n(home,'redCards'),n(away,'redCards')],
+  };
+}
+function _renderMatchFacts(facts){
+  const {homeAbbr,awayAbbr}=facts;
+  function row(h,a,label,isPct){
+    const total=h+a;const hp=total?Math.round(h/total*100):50;
+    const hStr=isPct?Math.round(h*100)+'%':h;
+    const aStr=isPct?Math.round(a*100)+'%':a;
+    return `<div class="mf-row"><span class="mf-val">${hStr}</span><div class="mf-hbar"><div style="width:${hp}%"></div></div><span class="mf-lbl">${label}</span><div class="mf-abar"><div style="width:${100-hp}%;margin-left:auto"></div></div><span class="mf-val away">${aStr}</span></div>`;
+  }
+  function sec(lbl){return `<div class="mf-section">${lbl}</div>`;}
+  const [ph,pa]=facts.poss;
+  const possBar=`<div class="mf-poss-vals"><span>${ph.toFixed(1)}%</span><span class="mf-poss-lbl">Possession</span><span>${pa.toFixed(1)}%</span></div><div class="mf-poss-bar"><div style="width:${ph}%;background:var(--amber)"></div><div style="width:${pa}%;background:rgba(255,255,255,.18)"></div></div>`;
+  return `<div class="mf-teams"><span>${homeAbbr}</span><span>${awayAbbr}</span></div>${possBar}${sec('Attack')}${row(...facts.shots,'Shots')}${row(...facts.onTarget,'On Target')}${row(...facts.corners,'Corners')}${row(...facts.blocked,'Blocked')}${sec('Passing')}${row(...facts.passes,'Passes')}${row(facts.passAcc[0],facts.passAcc[1],'Pass Acc.',true)}${row(...facts.crosses,'Crosses')}${row(facts.crossAcc[0],facts.crossAcc[1],'Cross Acc.',true)}${sec('Defence')}${row(...facts.saves,'Saves')}${row(...facts.tackles,'Tackles')}${row(...facts.interceptions,'Interceptions')}${row(...facts.clearances,'Clearances')}${sec('Discipline')}${row(...facts.fouls,'Fouls')}${row(...facts.offsides,'Offsides')}${row(...facts.yellows,'Yellow Cards')}${row(...facts.reds,'Red Cards')}`;
+}
+function _parseLineups(sumData,m){
+  return (sumData.rosters||[]).map(r=>{
+    const isHome=r.homeAway==='home';
+    let resultCtx=null;
+    if(m&&m.homeScore!=null&&m.awayScore!=null){
+      resultCtx={goalsFor:isHome?m.homeScore:m.awayScore,goalsAgainst:isHome?m.awayScore:m.homeScore};
+    }
+    return {
+      homeAway:r.homeAway,
+      formation:r.formation||'',
+      teamName:r.team?.abbreviation||r.team?.displayName||r.homeAway,
+      starters:(r.roster||[]).filter(p=>p.starter)
+        .sort((a,b)=>Number(a.formationPlace)-Number(b.formationPlace))
+        .map(p=>({
+          name:p.athlete?.shortName||_abbrevName(p.athlete?.displayName||''),
+          jersey:p.jersey||'',
+          subbedOut:!!p.subbedOut,
+          place:Number(p.formationPlace),
+          posAbbr:p.position?.abbreviation||'',
+          rating:_computeRating(p.stats,p.position?.abbreviation||'',resultCtx),
+        })),
+      subsUsed:(r.roster||[]).filter(p=>!p.starter&&p.subbedIn)
+        .map(p=>({
+          name:p.athlete?.shortName||_abbrevName(p.athlete?.displayName||''),
+          rating:_computeRating(p.stats,p.position?.abbreviation||'',resultCtx),
+        })),
+      subsUnused:(r.roster||[]).filter(p=>!p.starter&&!p.subbedIn)
+        .map(p=>p.athlete?.shortName||_abbrevName(p.athlete?.displayName||'')),
+    };
+  });
 }
 
 function lpTeamTab(idx){
@@ -1404,18 +1476,48 @@ function _posLateral(abbr,fp){
   return [5,fp];
 }
 
-function _computeRating(stats,posAbbr){
+function _computeRating(stats,posAbbr,resultCtx){
   const st={};
   for(const s of (stats||[])) st[s.name]=s.value||0;
-  const isGK=(posAbbr||'').toUpperCase()==='G'||(posAbbr||'').toUpperCase()==='GK';
+  const a=(posAbbr||'').toUpperCase();
+  const isGK=a==='G'||a==='GK';
+  const isDef=a.startsWith('CD')||a==='CB'||a==='SW'||a==='LB'||a==='RB'||a==='LWB'||a==='RWB'||a.startsWith('WB');
+  const isMid=a==='DM'||a==='CDM'||a==='CM'||a.startsWith('CM-')||a==='M'||a==='LM'||a==='RM'||a==='AM'||a.startsWith('AM-')||a==='CAM'||a==='SS';
   let r=6.0;
-  r+=(st.totalGoals||0)*1.5;
-  r+=(st.goalAssists||0)*1.0;
-  r+=(st.shotsOnTarget||0)*0.2;
-  if(isGK){r+=(st.saves||0)*0.4;r-=(st.goalsConceded||0)*0.3;}
+  if(isGK){
+    r+=(st.saves||0)*0.5;
+    r-=(st.goalsConceded||0)*0.4;
+    if((st.goalsConceded||0)===0&&(st.appearances||0)>0) r+=0.3; // clean sheet
+    r+=(st.totalGoals||0)*2.0;
+    r+=(st.goalAssists||0)*1.5;
+  } else if(isDef){
+    r+=(st.totalGoals||0)*2.0;     // rare, big bonus
+    r+=(st.goalAssists||0)*1.2;
+    r+=(st.shotsOnTarget||0)*0.3;
+    r-=(st.goalsConceded||0)*0.2;  // defensive accountability
+    r-=(st.foulsCommitted||0)*0.1;
+  } else if(isMid){
+    r+=(st.totalGoals||0)*1.5;
+    r+=(st.goalAssists||0)*1.2;
+    r+=(st.shotsOnTarget||0)*0.25;
+    r+=(st.foulsSuffered||0)*0.05; // drawing fouls is positive
+    r-=(st.foulsCommitted||0)*0.08;
+  } else {
+    // forward
+    r+=(st.totalGoals||0)*1.5;
+    r+=(st.goalAssists||0)*1.0;
+    r+=(st.shotsOnTarget||0)*0.3;
+    r-=(st.foulsCommitted||0)*0.05;
+  }
+  // universal
   r-=(st.yellowCards||0)*0.5;
   r-=(st.redCards||0)*2.0;
-  r-=(st.foulsCommitted||0)*0.1;
+  r-=(st.ownGoals||0)*1.5;
+  // result context — team win/loss margin
+  if(resultCtx){
+    const mg=resultCtx.goalsFor-resultCtx.goalsAgainst;
+    r+=mg>=3?0.3:mg===2?0.2:mg===1?0.1:mg===-1?-0.1:mg===-2?-0.2:mg<=-3?-0.3:0;
+  }
   return Math.round(Math.min(10,Math.max(1,r))*10)/10;
 }
 function _ratingColor(r){
@@ -1537,9 +1639,12 @@ async function openTimeline(matchId){
   document.getElementById('match-timeline').classList.add('open');
   const evEl=document.getElementById('tl-events');
   const lpEl=document.getElementById('tl-lineups');
+  const factsEl=document.getElementById('tl-facts');
   const lineupsTab=document.querySelector('.tl-tab[data-tab="lineups"]');
-  lpEl.innerHTML='';
+  const factsTab=document.querySelector('.tl-tab[data-tab="facts"]');
+  lpEl.innerHTML='';factsEl.innerHTML='';
   if(lineupsTab) lineupsTab.style.display='none';
+  if(factsTab) factsTab.style.display='none';
   if(m.espnId&&(m.status==='FINISHED'||m.status==='IN_PLAY')){
     evEl.innerHTML='<div class="tl-empty" style="padding:16px">Loading events…</div>';
     try{
@@ -1550,10 +1655,15 @@ async function openTimeline(matchId){
       const sumData=await resp.json();
       const incs=_parseSummaryIncidents(sumData,m);
       evEl.innerHTML=incs.length?_renderIncidentRows(incs):'<div class="tl-empty">No event data available.</div>';
-      const lineups=_parseLineups(sumData);
+      const lineups=_parseLineups(sumData,m);
       if(lineups.length){
         lpEl.innerHTML=_renderLineups(lineups,incs);
         if(lineupsTab) lineupsTab.style.display='';
+      }
+      const facts=_parseMatchFacts(sumData);
+      if(facts){
+        factsEl.innerHTML=_renderMatchFacts(facts);
+        if(factsTab) factsTab.style.display='';
       }
     } catch(e){
       const incs=m.incidents||[];
