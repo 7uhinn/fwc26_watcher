@@ -807,7 +807,7 @@ const FIFA_RANK = {
   CRO:16,SEN:17,AUS:18,SUI:19,ECU:20,PAR:21,TUR:22,
   NOR:23,SWE:24,ALG:25,AUT:26,GHA:27,SCO:28,TUN:29,
   IRQ:30,NZL:31,EGY:32,ZAF:33,KOR:34,CZE:35,HAI:36,
-  IRN:37,BIH:39,QAT:40,JOR:41,CPV:42,SAU:43,COD:44,
+  IRN:37,CAN:38,BIH:39,QAT:40,JOR:41,CPV:42,SAU:43,COD:44,
   UZB:45,PAN:46,CUW:48,CIV:50
 };
 
@@ -1378,10 +1378,55 @@ function setPredDirect(id, side, delta) {
 // COMPUTATION FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
 
+// FIFA 2026 System A tiebreaker — sorts a cluster of teams all tied on points.
+// Applies H2H (pts→GD→GF) first, then recursively re-applies to remaining tied
+// sub-clusters. Falls through to overall GD→GF→conduct→FIFA rank→name when H2H
+// cannot separate the full cluster (e.g. cyclic 3-way tie).
+function _sortCluster(names, rec, played) {
+  if (names.length <= 1) return names;
+  const h2h = getH2H(names, played);
+  const sorted = [...names].sort((a, b) => {
+    if (h2h[b].pts !== h2h[a].pts) return h2h[b].pts - h2h[a].pts;
+    if (h2h[b].gd  !== h2h[a].gd)  return h2h[b].gd  - h2h[a].gd;
+    if (h2h[b].gf  !== h2h[a].gf)  return h2h[b].gf  - h2h[a].gf;
+    return 0;
+  });
+  const result = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    while (
+      j < sorted.length &&
+      h2h[sorted[j]].pts === h2h[sorted[i]].pts &&
+      h2h[sorted[j]].gd  === h2h[sorted[i]].gd  &&
+      h2h[sorted[j]].gf  === h2h[sorted[i]].gf
+    ) j++;
+    const sub = sorted.slice(i, j);
+    if (sub.length === 1) {
+      result.push(sub[0]);
+    } else if (sub.length < names.length) {
+      result.push(..._sortCluster(sub, rec, played));
+    } else {
+      // H2H exhausted — fall through to overall stats
+      sub.sort((a, b) => {
+        if (rec[b].gd !== rec[a].gd) return rec[b].gd - rec[a].gd;
+        if (rec[b].gf !== rec[a].gf) return rec[b].gf - rec[a].gf;
+        if (rec[b].conductScore !== rec[a].conductScore) return rec[b].conductScore - rec[a].conductScore;
+        const ra = FIFA_RANK[a]||999, rb = FIFA_RANK[b]||999;
+        if (ra !== rb) return ra - rb;
+        return a.localeCompare(b);
+      });
+      result.push(...sub);
+    }
+    i = j;
+  }
+  return result;
+}
+
 function computeGroupStandings(groupCode) {
   const teams = GROUPS[groupCode];
   const rec = {};
-  teams.forEach(t => { rec[t]={mp:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0}; });
+  teams.forEach(t => { rec[t]={mp:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0,conductScore:0}; });
 
   const played = MATCHES.filter(m => {
     if(m.stage!=='GROUP'||m.group!==groupCode) return false;
@@ -1399,18 +1444,28 @@ function computeGroupStandings(groupCode) {
     else{ rec[h].d++;rec[h].pts++;rec[a].d++;rec[a].pts++; }
   });
 
-  // Bucket sort: group by pts, apply H2H within buckets
-  const sorted = [...teams].sort((a,b) => {
-    if(rec[b].pts!==rec[a].pts) return rec[b].pts-rec[a].pts;
-    // H2H check (simplified for 2-way tie — suffices for most cases)
-    const h2h = getH2H([a,b], played);
-    if(h2h[b].pts!==h2h[a].pts) return h2h[b].pts-h2h[a].pts;
-    if(h2h[b].gd!==h2h[a].gd) return h2h[b].gd-h2h[a].gd;
-    if(h2h[b].gf!==h2h[a].gf) return h2h[b].gf-h2h[a].gf;
-    if(rec[b].gd!==rec[a].gd) return rec[b].gd-rec[a].gd;
-    if(rec[b].gf!==rec[a].gf) return rec[b].gf-rec[a].gf;
-    return (FIFA_RANK[a]||99)-(FIFA_RANK[b]||99);
+  // Conduct score from card incidents (−1 yellow, −3 indirect red, −4 direct red)
+  MATCHES.filter(m=>m.stage==='GROUP'&&m.group===groupCode&&m.incidents).forEach(m=>{
+    m.incidents.forEach(inc=>{
+      const t=inc.team==='home'?m.home:inc.team==='away'?m.away:null;
+      if(!t||!rec[t]) return;
+      if(inc.type==='yellow') rec[t].conductScore-=1;
+      else if(inc.type==='yellow-red') rec[t].conductScore-=3;
+      else if(inc.type==='red') rec[t].conductScore-=4;
+    });
   });
+
+  // FIFA System A: sort by pts, then resolve each tied cluster with H2H cascade
+  const byPts = [...teams].sort((a, b) => rec[b].pts - rec[a].pts);
+  const sorted = [];
+  let ci = 0;
+  while (ci < byPts.length) {
+    let cj = ci + 1;
+    while (cj < byPts.length && rec[byPts[cj]].pts === rec[byPts[ci]].pts) cj++;
+    const cluster = byPts.slice(ci, cj);
+    sorted.push(...(cluster.length === 1 ? cluster : _sortCluster(cluster, rec, played)));
+    ci = cj;
+  }
 
   return sorted.map(t=>({team:t,...rec[t]}));
 }
@@ -1936,6 +1991,7 @@ const ANNEX_C=new Map([
 ]);
 
 function computeThirdPlaceStandings() {
+  // FIFA System B: no H2H (teams from different groups) — pts→GD→GF→conduct→FIFA rank→name
   return Object.keys(GROUPS).map(g => {
     const st = computeGroupStandings(g);
     return {...st[2], group:g};
@@ -1943,7 +1999,11 @@ function computeThirdPlaceStandings() {
     if(b.pts!==a.pts) return b.pts-a.pts;
     if(b.gd!==a.gd) return b.gd-a.gd;
     if(b.gf!==a.gf) return b.gf-a.gf;
-    return (FIFA_RANK[a.team]||99)-(FIFA_RANK[b.team]||99);
+    const ca=a.conductScore||0, cb=b.conductScore||0;
+    if(cb!==ca) return cb-ca;
+    const ra=FIFA_RANK[a.team]||999, rb=FIFA_RANK[b.team]||999;
+    if(ra!==rb) return ra-rb;
+    return (a.team||'').localeCompare(b.team||'');
   });
 }
 
