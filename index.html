@@ -587,6 +587,25 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 .tl-empty{text-align:center;color:var(--muted);font-size:12px;padding:28px 16px;}
 .tl-card-y{display:inline-block;width:8px;height:11px;background:#f5c518;border-radius:1px;vertical-align:middle;margin:0 2px;}
 .tl-card-r{display:inline-block;width:8px;height:11px;background:#e63946;border-radius:1px;vertical-align:middle;margin:0 2px;}
+.tl-tabs{display:flex;border-bottom:1px solid var(--border);}
+.tl-tab{flex:1;padding:7px 0;font-size:11px;font-weight:600;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;letter-spacing:.4px;transition:color .15s;}
+.tl-tab.active{color:var(--text);border-bottom-color:var(--amber);}
+.tl-lineups{flex:1;overflow-y:auto;display:none;padding:4px 8px 12px;}
+.lp-team-tabs{display:flex;gap:6px;padding:6px 0 8px;justify-content:center;}
+.lp-team-tab{padding:5px 20px;font-size:11px;font-weight:600;color:var(--muted);background:rgba(255,255,255,.06);border:none;border-radius:20px;cursor:pointer;transition:color .15s,background .15s;}
+.lp-team-tab.active{color:var(--amber);background:rgba(255,200,0,.12);}
+.lp-panel{display:none;}
+.lp-panel.active{display:block;}
+.lp-form-str{font-size:11px;color:var(--amber);text-align:center;font-weight:700;padding:2px 0 4px;}
+.lp-pitch{display:flex;flex-direction:column;gap:8px;padding:6px 0;}
+.lp-row{display:flex;justify-content:center;gap:4px;}
+.lp-player{display:flex;flex-direction:column;align-items:center;gap:2px;width:52px;}
+.lp-jersey{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.12);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.lp-player.subbed-out .lp-jersey{background:rgba(230,57,70,.25);color:var(--red);}
+.lp-pname{font-size:8px;text-align:center;width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);line-height:1.2;}
+.lp-subs-hdr{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding:6px 0 2px;border-top:1px solid rgba(255,255,255,.06);}
+.lp-sub-row{font-size:10px;padding:2px 0;line-height:1.4;}
+.lp-unused{font-size:9px;color:var(--muted);line-height:1.6;}
 </style>
 </head>
 <body>
@@ -754,12 +773,17 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
         <button class="tl-close" onclick="closeTimeline()">✕</button>
       </div>
       <div class="tl-score-row" id="tl-score-row"></div>
-      <div class="tl-col-labels">
+      <div class="tl-tabs">
+        <button class="tl-tab active" data-tab="events" onclick="tlTab('events')">Events</button>
+        <button class="tl-tab" data-tab="lineups" onclick="tlTab('lineups')">Lineups</button>
+      </div>
+      <div class="tl-col-labels" id="tl-col-labels">
         <div id="tl-home-label"></div>
         <div></div>
         <div id="tl-away-label"></div>
       </div>
       <div class="tl-events" id="tl-events"></div>
+      <div class="tl-lineups" id="tl-lineups"></div>
     </div>
   </div>
 
@@ -1199,10 +1223,46 @@ function _abbrevName(n){
 
 function _parseSummaryIncidents(sumData,m){
   const incs=[];
+  let drinksActive=false;
+  const injuredTeams=new Map(); // espnTeamId → clock value when injury delay started
+  // Pre-scan: teams that have an explicit "because of an injury" sub → skip heuristic for them
+  const explicitInjuryTeams=new Set(
+    (sumData.keyEvents||[])
+      .filter(e=>(e.type?.type||'')==='substitution'&&(e.text||'').toLowerCase().includes('because of an injury')&&e.team?.id)
+      .map(e=>e.team.id)
+  );
+
   for(const ev of (sumData.keyEvents||[])){
     const typeKey=(ev.type?.type||'').toLowerCase();
     const typeText=(ev.type?.text||'').toLowerCase();
     const minStr=ev.clock?.displayValue||'';
+    const clockVal=ev.clock?.value||0;
+    const teamId=ev.team?.id;
+
+    // ── Delay events ──
+    if(typeKey==='start-delay'){
+      const txt=ev.text||'';
+      if(txt.toLowerCase().includes('drinks break')&&!drinksActive){
+        drinksActive=true;
+        incs.push({minStr,type:'other',player:null,team:null,evText:'Drinks Break',
+                   isInjury:false,assist:null,playerOut:null,varNote:null,varTypeKey:null,varType:null});
+      } else if(txt.includes('(')&&teamId){
+        // Injury delay — track team+clock, skip display
+        injuredTeams.set(teamId,clockVal);
+      }
+      // blank or other delays → skip
+      continue;
+    }
+    if(typeKey==='end-delay'){
+      if(drinksActive){
+        drinksActive=false;
+        incs.push({minStr,type:'other',player:null,team:null,evText:'Drinks Break End',
+                   isInjury:false,assist:null,playerOut:null,varNote:null,varTypeKey:null,varType:null});
+      }
+      continue;
+    }
+
+    // ── Normal events ──
     let type=null;
     if(typeKey.startsWith('goal')||ev.scoringPlay){
       if(ev.ownGoal||typeKey.includes('own')) type='own-goal';
@@ -1213,39 +1273,188 @@ function _parseSummaryIncidents(sumData,m){
     else if(typeKey==='yellow-red-card'||(typeText.includes('yellow')&&typeText.includes('red'))) type='yellow-red';
     else if(typeKey==='substitution') type='substitution';
     else if(typeKey.includes('var')||typeText.includes('var')) type='var';
-    if(!type) continue;
-    const teamId=ev.team?.id;
+    else type='other';
+
     let side=teamId===m.espnHomeTeamId?'home':teamId===m.espnAwayTeamId?'away':null;
-    if(!side&&type!=='var') continue;
+    if(!side&&type!=='var'&&type!=='other') continue;
+
     const parts=ev.participants||[];
     const player=_abbrevName(parts[0]?.athlete?.displayName);
     const assist=(type==='goal'||type==='penalty')&&parts[1]?_abbrevName(parts[1].athlete?.displayName):null;
     const playerOut=type==='substitution'&&parts[1]?_abbrevName(parts[1].athlete?.displayName):null;
+
+    // Injury sub: explicit ESPN text wins; heuristic only fires when no explicit sub exists for that team
+    let isInjury=false;
+    if(type==='substitution'){
+      if((ev.text||'').toLowerCase().includes('because of an injury')) isInjury=true;
+      if(teamId&&injuredTeams.has(teamId)){
+        if(!isInjury&&!explicitInjuryTeams.has(teamId)&&clockVal-injuredTeams.get(teamId)<=900) isInjury=true;
+        injuredTeams.delete(teamId);
+      }
+    }
+
     const varNote=type==='var'?(ev.text||null):null;
-    incs.push({minStr,type,player,team:side,assist,playerOut,varNote});
+    const varTypeKey=type==='var'?(ev.type?.type||null):null;
+    const varType=type==='var'?(ev.type?.text||null):null;
+    const evText=type==='other'?(ev.text||ev.type?.text||typeKey||''):null;
+
+    incs.push({minStr,type,player,team:side,assist,playerOut,isInjury,varNote,varTypeKey,varType,evText});
   }
   return incs;
 }
 
 function _renderIncidentRows(incidents){
   return incidents.map(inc=>{
+    // Events with no team side: render as a full-width centred note
+    if(!inc.team){
+      if(inc.type==='other'){
+        const note=inc.evText||'';
+        if(!note) return '';
+        return `<div class="tl-row"><div style="grid-column:1/-1;text-align:center;font-size:10px;color:var(--muted)">${inc.minStr?`${inc.minStr} · `:''}${note}</div></div>`;
+      }
+      if(inc.type==='var'){
+        const action=(inc.varNote||'').replace(/^var\s*(?:decision|review)[:\s]*/i,'').trim()
+                   ||(inc.varType?inc.varType.replace(/^var\s*[-–]\s*/i,''):'Decision');
+        const line=`${_tlIcon('var')}${inc.player?' '+inc.player:''}${action?' · '+action:''}`;
+        return `<div class="tl-row"><div style="grid-column:1/-1;text-align:center;font-size:10px">${inc.minStr?`${inc.minStr} · `:''}${line}</div></div>`;
+      }
+    }
     const icon=_tlIcon(inc.type);
     let content;
     if(inc.type==='substitution'){
       const inLine=`${icon} <span style="color:var(--green)">${inc.player||''}</span>`;
-      const outLine=inc.playerOut?`<br><span style="font-size:10px;color:var(--red)">↓ ${inc.playerOut}</span>`:'';
+      const injBadge=inc.isInjury?` <span style="color:var(--red);font-size:10px">✚</span>`:'';
+      const outLine=inc.playerOut?`<br><span style="font-size:10px;color:var(--red)">↓ ${inc.playerOut}${injBadge}</span>`:'';
       content=inLine+outLine;
+    } else if(inc.type==='var'){
+      const action=(inc.varNote||'').replace(/^var\s*(?:decision|review)[:\s]*/i,'').trim()
+                 ||(inc.varType?inc.varType.replace(/^var\s*[-–]\s*/i,''):'Decision');
+      content=inc.player?`${icon} ${inc.player}`:icon;
+      content+=`<br><span style="font-size:10px;color:var(--muted)">${action}</span>`;
+    } else if(inc.type==='other'){
+      content=`<span style="font-size:10px;color:var(--muted)">${inc.evText||''}</span>`;
     } else {
       content=inc.player?`${icon} ${inc.player}`:icon;
       if((inc.type==='goal'||inc.type==='penalty')&&inc.assist)
         content+=`<br><span style="font-size:10px;color:var(--muted)">🅰 ${inc.assist}</span>`;
-      if(inc.type==='var'&&inc.varNote)
-        content+=`<br><span style="font-size:9px;color:var(--muted)">${inc.varNote}</span>`;
     }
     const hc=inc.team==='home'?`<div class="tl-home-evt">${content}</div>`:'<div class="tl-home-evt"></div>';
     const ac=inc.team==='away'?`<div class="tl-away-evt">${content}</div>`:'<div class="tl-away-evt"></div>';
     return `<div class="tl-row">${hc}<div class="tl-min">${inc.minStr}</div>${ac}</div>`;
   }).join('');
+}
+
+function tlTab(name){
+  document.querySelectorAll('.tl-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  const isEv=name==='events';
+  document.getElementById('tl-col-labels').style.display=isEv?'':'none';
+  document.getElementById('tl-events').style.display=isEv?'':'none';
+  document.getElementById('tl-lineups').style.display=isEv?'none':'block';
+}
+
+function _parseLineups(sumData){
+  return (sumData.rosters||[]).map(r=>({
+    homeAway:r.homeAway,
+    formation:r.formation||'',
+    teamName:r.team?.abbreviation||r.team?.displayName||r.homeAway,
+    starters:(r.roster||[]).filter(p=>p.starter)
+      .sort((a,b)=>Number(a.formationPlace)-Number(b.formationPlace))
+      .map(p=>({
+        name:p.athlete?.shortName||_abbrevName(p.athlete?.displayName||''),
+        jersey:p.jersey||'',
+        subbedOut:!!p.subbedOut,
+        place:Number(p.formationPlace),
+        posAbbr:p.position?.abbreviation||'',
+      })),
+    subsUsed:(r.roster||[]).filter(p=>!p.starter&&p.subbedIn)
+      .map(p=>({name:p.athlete?.shortName||_abbrevName(p.athlete?.displayName||'')})),
+    subsUnused:(r.roster||[]).filter(p=>!p.starter&&!p.subbedIn)
+      .map(p=>p.athlete?.shortName||_abbrevName(p.athlete?.displayName||'')),
+  }));
+}
+
+function lpTeamTab(idx){
+  document.querySelectorAll('.lp-team-tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+  document.querySelectorAll('.lp-panel').forEach((p,i)=>p.classList.toggle('active',i===idx));
+}
+
+function _posDepth(abbr){
+  const a=(abbr||'').toUpperCase();
+  if(a==='G'||a==='GK') return 99;
+  if(a.startsWith('CD')||a==='CB'||a==='SW') return 80;
+  if(a==='LB'||a==='RB'||a==='LWB'||a==='RWB'||a.startsWith('WB')) return 70;
+  if(a==='DM'||a==='CDM') return 60;
+  if(a==='CM'||a.startsWith('CM-')||a==='M') return 50;
+  if(a==='LM'||a==='RM') return 45;
+  if(a==='AM'||a.startsWith('AM-')||a==='CAM'||a==='SS') return 35;
+  if(a==='LW'||a==='RW') return 25;
+  if(a==='F'||a.startsWith('CF')||a==='ST') return 15;
+  return 45;
+}
+function _posLateral(abbr,fp){
+  const a=(abbr||'').toUpperCase();
+  if(a==='LB'||a==='LWB'||a==='LW'||a==='LM') return [0,fp];
+  if(a.endsWith('-L')) return [1,fp];
+  if(a==='RB'||a==='RWB'||a==='RW'||a==='RM') return [10,fp];
+  if(a.endsWith('-R')) return [9,fp];
+  return [5,fp];
+}
+
+function _renderLineups(lineups,incidents){
+  if(!lineups.length) return '<div class="tl-empty">No lineup data.</div>';
+  const subOutTime={},subInTime={};
+  for(const inc of incidents){
+    if(inc.type==='substitution'){
+      if(inc.playerOut) subOutTime[inc.playerOut.toLowerCase()]=inc.minStr;
+      if(inc.player)    subInTime[inc.player.toLowerCase()]=inc.minStr;
+    }
+  }
+  const sides=lineups.length===2
+    ?(lineups[0].homeAway==='home'?[lineups[0],lineups[1]]:[lineups[1],lineups[0]])
+    :lineups;
+  function renderTeam(lu){
+    const lines=(lu.formation||'').split('-').map(Number).filter(n=>n>0);
+    const gk=lu.starters.find(p=>p.place===1);
+    const outfield=[...lu.starters.filter(p=>p.place!==1)]
+      .sort((a,b)=>_posDepth(b.posAbbr)-_posDepth(a.posAbbr));
+    const rows=[[gk].filter(Boolean)];
+    let idx=0;
+    for(const cnt of lines){
+      const row=outfield.slice(idx,idx+cnt);
+      row.sort((a,b)=>{
+        const la=_posLateral(a.posAbbr,a.place),lb=_posLateral(b.posAbbr,b.place);
+        return la[0]!==lb[0]?la[0]-lb[0]:la[1]-lb[1];
+      });
+      rows.push(row);
+      idx+=cnt;
+    }
+    const pitchHtml=rows.slice().reverse().map(row=>{
+      const chips=row.map(p=>{
+        if(!p) return '';
+        const cls=p.subbedOut?'lp-player subbed-out':'lp-player';
+        const min=p.subbedOut?(subOutTime[p.name.toLowerCase()]||''):'';
+        const minTag=min?`<br><span style="font-size:7px;color:var(--red)">${min}</span>`:'';
+        return `<div class="${cls}"><div class="lp-jersey">${p.jersey}</div><div class="lp-pname">${p.name}${minTag}</div></div>`;
+      }).join('');
+      return `<div class="lp-row">${chips}</div>`;
+    }).join('');
+    const usedHtml=lu.subsUsed.map(s=>{
+      const t=subInTime[s.name.toLowerCase()]||'';
+      return `<div class="lp-sub-row"><span style="color:var(--green)">↑</span> ${s.name}${t?` <span style="font-size:9px;color:var(--muted)">${t}</span>`:''}</div>`;
+    }).join('');
+    const unusedHtml=lu.subsUnused.length?`<div class="lp-unused">${lu.subsUnused.join(', ')}</div>`:'';
+    return `<div class="lp-form-str">${lu.formation||'—'}</div>
+      <div class="lp-pitch">${pitchHtml}</div>
+      ${lu.subsUsed.length?`<div class="lp-subs-hdr">Subs Used</div>${usedHtml}`:''}
+      ${lu.subsUnused.length?`<div class="lp-subs-hdr">Bench</div>${unusedHtml}`:''}`;
+  }
+  const tabBtns=sides.map((lu,i)=>
+    `<button class="lp-team-tab${i===0?' active':''}" onclick="lpTeamTab(${i})">${lu.teamName}</button>`
+  ).join('');
+  const panels=sides.map((lu,i)=>
+    `<div class="lp-panel${i===0?' active':''}">${renderTeam(lu)}</div>`
+  ).join('');
+  return `<div class="lp-team-tabs">${tabBtns}</div>${panels}`;
 }
 
 async function openTimeline(matchId){
@@ -1265,8 +1474,13 @@ async function openTimeline(matchId){
   } else {sr.style.display='none';}
   document.getElementById('tl-home-label').textContent=(m.home||'').toUpperCase();
   document.getElementById('tl-away-label').textContent=(m.away||'').toUpperCase();
+  tlTab('events');
   document.getElementById('match-timeline').classList.add('open');
   const evEl=document.getElementById('tl-events');
+  const lpEl=document.getElementById('tl-lineups');
+  const lineupsTab=document.querySelector('.tl-tab[data-tab="lineups"]');
+  lpEl.innerHTML='';
+  if(lineupsTab) lineupsTab.style.display='none';
   if(m.espnId&&(m.status==='FINISHED'||m.status==='IN_PLAY')){
     evEl.innerHTML='<div class="tl-empty" style="padding:16px">Loading events…</div>';
     try{
@@ -1277,6 +1491,11 @@ async function openTimeline(matchId){
       const sumData=await resp.json();
       const incs=_parseSummaryIncidents(sumData,m);
       evEl.innerHTML=incs.length?_renderIncidentRows(incs):'<div class="tl-empty">No event data available.</div>';
+      const lineups=_parseLineups(sumData);
+      if(lineups.length){
+        lpEl.innerHTML=_renderLineups(lineups,incs);
+        if(lineupsTab) lineupsTab.style.display='';
+      }
     } catch(e){
       const incs=m.incidents||[];
       evEl.innerHTML=incs.length?_renderIncidentRows(incs):'<div class="tl-empty">No event data available.</div>';
