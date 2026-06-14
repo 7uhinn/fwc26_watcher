@@ -840,6 +840,17 @@ const TEAM_NAMES = {
   ENG:'England',CRO:'Croatia',GHA:'Ghana',PAN:'Panama'
 };
 
+const MANAGERS = {
+  ARG:'L. Scaloni',  BRA:'D. Júnior',   FRA:'D. Deschamps', ENG:'T. Tuchel',
+  ESP:'L. de la Fuente', GER:'J. Nagelsmann', POR:'R. Martínez', NED:'R. Koeman',
+  URU:'M. Bielsa',  MAR:'W. Regragui', CRO:'Z. Dalić',    SEN:'A. Cissé',
+  JPN:'H. Moriyasu',MEX:'J. Aguirre',  USA:'M. Pochettino',SUI:'M. Yakin',
+  BEL:'D. Tedesco', NOR:'S. Solbakken',AUS:'T. Popovic',  SCO:'S. Clarke',
+  TUR:'V. Montella',AUT:'R. Rangnick', COL:'N. Lorenzo',  SAU:'R. Mancini',
+  CZE:'I. Hašek',   ECU:'S. Beccacece',CAN:'J. Marsch',   SWE:'J.D. Tomasson',
+  CPV:'P. Brito',   UZB:'S. Katanec',  PAN:'T. Christiansen',CIV:'E. Faé',
+};
+
 const FIFA_RANK = {
   ARG:1,FRA:2,ENG:3,BEL:4,BRA:5,POR:6,NED:7,ESP:8,
   GER:9,URU:10,COL:11,MAR:12,USA:13,MEX:14,JPN:15,
@@ -1376,6 +1387,13 @@ function tlTab(name){
   document.getElementById('tl-facts').style.display=isFacts?'block':'none';
 }
 
+function _barColor(hex){
+  if(!hex||hex.length<6) return 'rgba(255,255,255,.3)';
+  const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
+  if((0.299*r+0.587*g+0.114*b)/255>=0.2) return '#'+hex;
+  const bl=0.65;
+  return `rgb(${Math.round(r+(255-r)*bl)},${Math.round(g+(255-g)*bl)},${Math.round(b+(255-b)*bl)})`;
+}
 function _parseMatchFacts(sumData){
   const teams=(sumData.boxscore?.teams)||[];
   if(teams.length<2) return null;
@@ -1385,6 +1403,8 @@ function _parseMatchFacts(sumData){
   return {
     homeAbbr:home.team?.abbreviation||'HOME',
     awayAbbr:away.team?.abbreviation||'AWAY',
+    homeColor:_barColor(home.team?.color||''),
+    awayColor:_barColor(away.team?.alternateColor||away.team?.color||''),
     poss:[n(home,'possessionPct'),n(away,'possessionPct')],
     shots:[n(home,'totalShots'),n(away,'totalShots')],
     onTarget:[n(home,'shotsOnTarget'),n(away,'shotsOnTarget')],
@@ -1405,16 +1425,16 @@ function _parseMatchFacts(sumData){
   };
 }
 function _renderMatchFacts(facts){
-  const {homeAbbr,awayAbbr}=facts;
+  const {homeAbbr,awayAbbr,homeColor,awayColor}=facts;
   function row(h,a,label,isPct){
     const total=h+a;const hp=total?Math.round(h/total*100):50;
     const hStr=isPct?Math.round(h*100)+'%':h;
     const aStr=isPct?Math.round(a*100)+'%':a;
-    return `<div class="mf-row"><span class="mf-val">${hStr}</span><div class="mf-hbar"><div style="width:${hp}%"></div></div><span class="mf-lbl">${label}</span><div class="mf-abar"><div style="width:${100-hp}%;margin-left:auto"></div></div><span class="mf-val away">${aStr}</span></div>`;
+    return `<div class="mf-row"><span class="mf-val">${hStr}</span><div class="mf-hbar"><div style="width:${hp}%;background:${homeColor}"></div></div><span class="mf-lbl">${label}</span><div class="mf-abar"><div style="width:${100-hp}%;margin-left:auto;background:${awayColor}"></div></div><span class="mf-val away">${aStr}</span></div>`;
   }
   function sec(lbl){return `<div class="mf-section">${lbl}</div>`;}
   const [ph,pa]=facts.poss;
-  const possBar=`<div class="mf-poss-vals"><span>${ph.toFixed(1)}%</span><span class="mf-poss-lbl">Possession</span><span>${pa.toFixed(1)}%</span></div><div class="mf-poss-bar"><div style="width:${ph}%;background:var(--amber)"></div><div style="width:${pa}%;background:rgba(255,255,255,.18)"></div></div>`;
+  const possBar=`<div class="mf-poss-vals"><span style="color:${homeColor}">${ph.toFixed(1)}%</span><span class="mf-poss-lbl">Possession</span><span style="color:${awayColor}">${pa.toFixed(1)}%</span></div><div class="mf-poss-bar"><div style="width:${ph}%;background:${homeColor}"></div><div style="width:${pa}%;background:${awayColor}"></div></div>`;
   return `<div class="mf-teams"><span>${homeAbbr}</span><span>${awayAbbr}</span></div>${possBar}${sec('Attack')}${row(...facts.shots,'Shots')}${row(...facts.onTarget,'On Target')}${row(...facts.corners,'Corners')}${row(...facts.blocked,'Blocked')}${sec('Passing')}${row(...facts.passes,'Passes')}${row(facts.passAcc[0],facts.passAcc[1],'Pass Acc.',true)}${row(...facts.crosses,'Crosses')}${row(facts.crossAcc[0],facts.crossAcc[1],'Cross Acc.',true)}${sec('Defence')}${row(...facts.saves,'Saves')}${row(...facts.tackles,'Tackles')}${row(...facts.interceptions,'Interceptions')}${row(...facts.clearances,'Clearances')}${sec('Discipline')}${row(...facts.fouls,'Fouls')}${row(...facts.offsides,'Offsides')}${row(...facts.yellows,'Yellow Cards')}${row(...facts.reds,'Red Cards')}`;
 }
 function _parseLineups(sumData,m){
@@ -1424,10 +1444,12 @@ function _parseLineups(sumData,m){
     if(m&&m.homeScore!=null&&m.awayScore!=null){
       resultCtx={goalsFor:isHome?m.homeScore:m.awayScore,goalsAgainst:isHome?m.awayScore:m.homeScore};
     }
+    const abbr=r.team?.abbreviation||'';
     return {
       homeAway:r.homeAway,
       formation:r.formation||'',
-      teamName:r.team?.abbreviation||r.team?.displayName||r.homeAway,
+      teamName:abbr||r.team?.displayName||r.homeAway,
+      managerName:MANAGERS[abbr]||'',
       starters:(r.roster||[]).filter(p=>p.starter)
         .sort((a,b)=>Number(a.formationPlace)-Number(b.formationPlace))
         .map(p=>({
@@ -1529,13 +1551,13 @@ function _lpCardSpan(card){
   if(card==='yellow-red') return `<span style="display:inline-block;width:4px;height:6px;background:#FFD700;border-radius:1px;vertical-align:middle"></span><span style="display:inline-block;width:4px;height:6px;background:var(--red);border-radius:1px;vertical-align:middle;margin-left:1px"></span>`;
   return '';
 }
-function _lpBadgeChip(jersey,nk,goals,assists,cards,rating){
+function _lpBadgeChip(jersey,nk,goals,assists,cards,rating,isMotm){
   let b='';
   const g=goals[nk];
   if(g) b+=`<span style="font-size:8px;line-height:1">⚽${g>1?'<span style="font-size:8px">×'+g+'</span>':''}</span>`;
   const a=assists[nk];if(a) b+=`<span style="font-size:8px;line-height:1">🅰️${a>1?'<span style="font-size:8px">×'+a+'</span>':''}</span>`;
   b+=_lpCardSpan(cards[nk]);
-  const rPill=rating!=null?`<div style="position:absolute;top:0;left:-12px;background:${_ratingColor(rating)};color:#111;font-size:6.5px;font-weight:700;padding:1px 3px;border-radius:4px;line-height:1.4;white-space:nowrap">${rating.toFixed(1)}</div>`:'';
+  const rPill=rating!=null?`<div style="position:absolute;top:0;left:-12px;background:${isMotm?'#93c5fd':_ratingColor(rating)};color:#111;font-size:6.5px;font-weight:700;padding:1px 3px;border-radius:4px;line-height:1.4;white-space:nowrap">${isMotm?'★':''}${rating.toFixed(1)}</div>`:'';
   if(!b&&!rPill) return `<div class="lp-jersey">${jersey}</div>`;
   return `<div style="position:relative;display:inline-block"><div class="lp-jersey">${jersey}</div>${rPill}${b?`<div style="position:absolute;top:0;right:-12px;display:flex;align-items:center;gap:1px;line-height:1">${b}</div>`:''}</div>`;
 }
@@ -1548,7 +1570,7 @@ function _lpBadgeInline(nk,goals,assists,cards){
   return b;
 }
 
-function _renderLineups(lineups,incidents){
+function _renderLineups(lineups,incidents,isFinished){
   if(!lineups.length) return '<div class="tl-empty">No lineup data.</div>';
   const subOutTime={},subInTime={},playerGoals={},playerAssists={},playerCards={};
   for(const inc of incidents){
@@ -1565,6 +1587,16 @@ function _renderLineups(lineups,incidents){
   const sides=lineups.length===2
     ?(lineups[0].homeAway==='home'?[lineups[0],lineups[1]]:[lineups[1],lineups[0]])
     :lineups;
+  // MOTM: single best player across both teams, only when match is finished
+  let globalMotmKey=null;
+  if(isFinished){
+    let best=0;
+    for(const lu of sides){
+      for(const p of [...lu.starters,...lu.subsUsed]){
+        if(p.rating!=null&&p.rating>best){best=p.rating;globalMotmKey=p.name.toLowerCase();}
+      }
+    }
+  }
   function renderTeam(lu){
     const lines=(lu.formation||'').split('-').map(Number).filter(n=>n>0);
     const gk=lu.starters.find(p=>p.place===1);
@@ -1581,6 +1613,7 @@ function _renderLineups(lineups,incidents){
       rows.push(row);
       idx+=cnt;
     }
+    const allRated=[...lu.starters,...lu.subsUsed].filter(p=>p.rating!=null);
     const pitchHtml=rows.slice().reverse().map(row=>{
       const chips=row.map(p=>{
         if(!p) return '';
@@ -1588,7 +1621,7 @@ function _renderLineups(lineups,incidents){
         const nk=p.name.toLowerCase();
         const min=p.subbedOut?(subOutTime[nk]||''):'';
         const minTag=min?`<br><span style="font-size:7px;color:var(--red)">${min}</span>`:'';
-        const jerseyHtml=_lpBadgeChip(p.jersey,nk,playerGoals,playerAssists,playerCards,p.rating);
+        const jerseyHtml=_lpBadgeChip(p.jersey,nk,playerGoals,playerAssists,playerCards,p.rating,nk===globalMotmKey);
         return `<div class="${cls}">${jerseyHtml}<div class="lp-pname">${p.name}${minTag}</div></div>`;
       }).join('');
       return `<div class="lp-row">${chips}</div>`;
@@ -1597,14 +1630,17 @@ function _renderLineups(lineups,incidents){
       const snk=s.name.toLowerCase();
       const t=subInTime[snk]||'';
       const sb=_lpBadgeInline(snk,playerGoals,playerAssists,playerCards);
-      const rSpan=s.rating!=null?` <span style="font-size:7px;font-weight:700;background:${_ratingColor(s.rating)};color:#111;padding:1px 3px;border-radius:4px">${s.rating.toFixed(1)}</span>`:'';
+      const isMotmSub=snk===globalMotmKey;
+      const rSpan=s.rating!=null?` <span style="font-size:7px;font-weight:700;background:${isMotmSub?'#93c5fd':_ratingColor(s.rating)};color:#111;padding:1px 3px;border-radius:4px">${isMotmSub?'★':''}${s.rating.toFixed(1)}</span>`:'';
       return `<div class="lp-sub-row"><span style="color:var(--green)">↑</span> ${s.name}${t?` <span style="font-size:9px;color:var(--muted)">${t}</span>`:''}${sb?` ${sb}`:''}${rSpan}</div>`;
     }).join('');
     const unusedHtml=lu.subsUnused.length?`<div class="lp-unused">${lu.subsUnused.join(', ')}</div>`:'';
-    const allRated=[...lu.starters,...lu.subsUsed].filter(p=>p.rating!=null);
     const teamAvg=allRated.length?Math.round(allRated.reduce((s,p)=>s+p.rating,0)/allRated.length*10)/10:null;
-    const avgSpan=teamAvg!=null?` <span style="font-size:8px;font-weight:700;background:${_ratingColor(teamAvg)};color:#111;padding:1px 4px;border-radius:4px;vertical-align:middle">${teamAvg.toFixed(1)}</span>`:'';
-    return `<div class="lp-form-str">${lu.formation||'—'}${avgSpan}</div>
+    const avgPill=teamAvg!=null?`<span style="font-size:9px;font-weight:700;background:${_ratingColor(teamAvg)};color:#111;padding:2px 6px;border-radius:4px">${teamAvg.toFixed(1)}</span>`:'';
+    const sep=(avgPill&&lu.managerName)?`<span style="color:rgba(255,255,255,.25);margin:0 5px">·</span>`:'';
+    const mgrSpan=lu.managerName?`<span style="font-size:8px;color:var(--muted)">🧑‍💼 ${lu.managerName}</span>`:'';
+    const header=(avgPill||lu.managerName)?`<div style="text-align:center;padding:6px 0 6px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:4px">${mgrSpan}${sep}${avgPill}</div>`:'';
+    return `${header}<div class="lp-form-str">${lu.formation||'—'}</div>
       <div class="lp-pitch">${pitchHtml}</div>
       ${lu.subsUsed.length?`<div class="lp-subs-hdr">Subs Used</div>${usedHtml}`:''}
       ${lu.subsUnused.length?`<div class="lp-subs-hdr">Bench</div>${unusedHtml}`:''}`;
@@ -1657,7 +1693,7 @@ async function openTimeline(matchId){
       evEl.innerHTML=incs.length?_renderIncidentRows(incs):'<div class="tl-empty">No event data available.</div>';
       const lineups=_parseLineups(sumData,m);
       if(lineups.length){
-        lpEl.innerHTML=_renderLineups(lineups,incs);
+        lpEl.innerHTML=_renderLineups(lineups,incs,m.status==='FINISHED');
         if(lineupsTab) lineupsTab.style.display='';
       }
       const facts=_parseMatchFacts(sumData);
