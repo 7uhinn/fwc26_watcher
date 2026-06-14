@@ -1336,7 +1336,7 @@ function _renderIncidentRows(incidents){
     } else {
       content=inc.player?`${icon} ${inc.player}`:icon;
       if((inc.type==='goal'||inc.type==='penalty')&&inc.assist)
-        content+=`<br><span style="font-size:10px;color:var(--muted)">🅰 ${inc.assist}</span>`;
+        content+=`<br><span style="font-size:10px;color:var(--muted)"><span style="font-size:8px">🅰️</span> ${inc.assist}</span>`;
     }
     const hc=inc.team==='home'?`<div class="tl-home-evt">${content}</div>`:'<div class="tl-home-evt"></div>';
     const ac=inc.team==='away'?`<div class="tl-away-evt">${content}</div>`:'<div class="tl-away-evt"></div>';
@@ -1400,14 +1400,43 @@ function _posLateral(abbr,fp){
   return [5,fp];
 }
 
+function _lpCardSpan(card){
+  if(card==='yellow') return `<span style="display:inline-block;width:4px;height:6px;background:#FFD700;border-radius:1px;vertical-align:middle"></span>`;
+  if(card==='red') return `<span style="display:inline-block;width:4px;height:6px;background:var(--red);border-radius:1px;vertical-align:middle"></span>`;
+  if(card==='yellow-red') return `<span style="display:inline-block;width:4px;height:6px;background:#FFD700;border-radius:1px;vertical-align:middle"></span><span style="display:inline-block;width:4px;height:6px;background:var(--red);border-radius:1px;vertical-align:middle;margin-left:1px"></span>`;
+  return '';
+}
+function _lpBadgeChip(jersey,nk,goals,assists,cards){
+  let b='';
+  const g=goals[nk];
+  if(g) b+=`<span style="font-size:8px;line-height:1">⚽${g>1?'<span style="font-size:8px">×'+g+'</span>':''}</span>`;
+  if(assists[nk]) b+=`<span style="font-size:8px;line-height:1">🅰️</span>`;
+  b+=_lpCardSpan(cards[nk]);
+  if(!b) return `<div class="lp-jersey">${jersey}</div>`;
+  return `<div style="position:relative;display:inline-block"><div class="lp-jersey">${jersey}</div><div style="position:absolute;top:-3px;right:-5px;display:flex;align-items:center;gap:1px;line-height:1">${b}</div></div>`;
+}
+function _lpBadgeInline(nk,goals,assists,cards){
+  let b='';
+  const g=goals[nk];
+  if(g) b+=`<span style="font-size:8px">⚽${g>1?'×'+g:''}</span>`;
+  if(assists[nk]) b+=`<span style="font-size:8px">🅰️</span>`;
+  b+=_lpCardSpan(cards[nk]);
+  return b;
+}
+
 function _renderLineups(lineups,incidents){
   if(!lineups.length) return '<div class="tl-empty">No lineup data.</div>';
-  const subOutTime={},subInTime={};
+  const subOutTime={},subInTime={},playerGoals={},playerAssists={},playerCards={};
   for(const inc of incidents){
+    const n=inc.player?.toLowerCase();
+    const an=inc.assist?.toLowerCase();
     if(inc.type==='substitution'){
       if(inc.playerOut) subOutTime[inc.playerOut.toLowerCase()]=inc.minStr;
-      if(inc.player)    subInTime[inc.player.toLowerCase()]=inc.minStr;
+      if(n) subInTime[n]=inc.minStr;
     }
+    if(n&&(inc.type==='goal'||inc.type==='penalty')) playerGoals[n]=(playerGoals[n]||0)+1;
+    if(an) playerAssists[an]=(playerAssists[an]||0)+1;
+    if(n&&(inc.type==='yellow'||inc.type==='red'||inc.type==='yellow-red')) playerCards[n]=inc.type;
   }
   const sides=lineups.length===2
     ?(lineups[0].homeAway==='home'?[lineups[0],lineups[1]]:[lineups[1],lineups[0]])
@@ -1432,15 +1461,19 @@ function _renderLineups(lineups,incidents){
       const chips=row.map(p=>{
         if(!p) return '';
         const cls=p.subbedOut?'lp-player subbed-out':'lp-player';
-        const min=p.subbedOut?(subOutTime[p.name.toLowerCase()]||''):'';
+        const nk=p.name.toLowerCase();
+        const min=p.subbedOut?(subOutTime[nk]||''):'';
         const minTag=min?`<br><span style="font-size:7px;color:var(--red)">${min}</span>`:'';
-        return `<div class="${cls}"><div class="lp-jersey">${p.jersey}</div><div class="lp-pname">${p.name}${minTag}</div></div>`;
+        const jerseyHtml=_lpBadgeChip(p.jersey,nk,playerGoals,playerAssists,playerCards);
+        return `<div class="${cls}">${jerseyHtml}<div class="lp-pname">${p.name}${minTag}</div></div>`;
       }).join('');
       return `<div class="lp-row">${chips}</div>`;
     }).join('');
     const usedHtml=lu.subsUsed.map(s=>{
-      const t=subInTime[s.name.toLowerCase()]||'';
-      return `<div class="lp-sub-row"><span style="color:var(--green)">↑</span> ${s.name}${t?` <span style="font-size:9px;color:var(--muted)">${t}</span>`:''}</div>`;
+      const snk=s.name.toLowerCase();
+      const t=subInTime[snk]||'';
+      const sb=_lpBadgeInline(snk,playerGoals,playerAssists,playerCards);
+      return `<div class="lp-sub-row"><span style="color:var(--green)">↑</span> ${s.name}${t?` <span style="font-size:9px;color:var(--muted)">${t}</span>`:''}${sb?` ${sb}`:''}</div>`;
     }).join('');
     const unusedHtml=lu.subsUnused.length?`<div class="lp-unused">${lu.subsUnused.join(', ')}</div>`:'';
     return `<div class="lp-form-str">${lu.formation||'—'}</div>
