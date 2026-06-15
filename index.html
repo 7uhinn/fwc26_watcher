@@ -619,6 +619,13 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 .lp-subs-hdr{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding:6px 0 2px;border-top:1px solid rgba(255,255,255,.06);}
 .lp-sub-row{font-size:10px;padding:2px 0;line-height:1.4;}
 .lp-unused{font-size:9px;color:var(--muted);line-height:1.6;}
+#lp-player-popup{display:none;position:fixed;inset:0;z-index:400;align-items:center;justify-content:center;background:rgba(0,0,0,.55);}
+#lp-player-popup.open{display:flex;}
+.lp-pp-card{background:#1a1d2e;border:1px solid rgba(255,255,255,.13);border-radius:10px;padding:16px 18px;min-width:220px;max-width:268px;position:relative;max-height:80vh;display:flex;flex-direction:column;}
+.lp-pp-body{overflow-y:auto;flex:1;}
+.lp-pp-sec-hd{font-size:8px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.6px;padding:4px 0 2px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:2px;}
+.lp-pp-stat-row{display:flex;justify-content:space-between;align-items:center;font-size:10px;padding:2px 0;}
+.lp-pp-stat-val{font-weight:700;font-size:11px;}
 </style>
 </head>
 <body>
@@ -802,6 +809,14 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
     </div>
   </div>
 
+</div>
+
+<div id="lp-player-popup" onclick="if(event.target===this)__lpClose()">
+  <div class="lp-pp-card">
+    <button onclick="__lpClose()" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 6px;line-height:1">✕</button>
+    <div id="lp-pp-header"></div>
+    <div class="lp-pp-body"><div id="lp-pp-content"></div></div>
+  </div>
 </div>
 
 <script>
@@ -1471,11 +1486,15 @@ function _parseLineups(sumData,m){
           subbedOut:!!p.subbedOut,
           place:Number(p.formationPlace),
           posAbbr:p.position?.abbreviation||'',
+          stats:p.stats||[],
           rating:_computeRating(p.stats,p.position?.abbreviation||'',resultCtx),
         })),
       subsUsed:(r.roster||[]).filter(p=>!p.starter&&p.subbedIn)
         .map(p=>({
           name:p.athlete?.shortName||_abbrevName(p.athlete?.displayName||''),
+          jersey:p.jersey||'',
+          posAbbr:p.position?.abbreviation||'',
+          stats:p.stats||[],
           rating:_computeRating(p.stats,p.position?.abbreviation||'',resultCtx),
         })),
       subsUnused:(r.roster||[]).filter(p=>!p.starter&&!p.subbedIn)
@@ -1585,6 +1604,7 @@ function _lpBadgeInline(nk,goals,assists,cards){
 
 function _renderLineups(lineups,incidents,isFinished){
   if(!lineups.length) return '<div class="tl-empty">No lineup data.</div>';
+  window.__lpPlayers={};
   const subOutTime={},subInTime={},playerGoals={},playerAssists={},playerCards={};
   for(const inc of incidents){
     const n=inc.player?.toLowerCase();
@@ -1632,20 +1652,23 @@ function _renderLineups(lineups,incidents,isFinished){
         if(!p) return '';
         const cls=p.subbedOut?'lp-player subbed-out':'lp-player';
         const nk=p.name.toLowerCase();
+        const isMotm=nk===globalMotmKey;
+        window.__lpPlayers[nk]={name:p.name,jersey:p.jersey,posAbbr:p.posAbbr,rating:p.rating,isMotm,stats:p.stats};
         const min=p.subbedOut?(subOutTime[nk]||''):'';
         const minTag=min?`<br><span style="font-size:7px;color:var(--red)">${min}</span>`:'';
-        const jerseyHtml=_lpBadgeChip(p.jersey,nk,playerGoals,playerAssists,playerCards,p.rating,nk===globalMotmKey);
-        return `<div class="${cls}">${jerseyHtml}<div class="lp-pname">${p.name}${minTag}</div></div>`;
+        const jerseyHtml=_lpBadgeChip(p.jersey,nk,playerGoals,playerAssists,playerCards,p.rating,isMotm);
+        return `<div class="${cls}" data-lpkey="${nk}" onclick="__lpShowPlayer(this.dataset.lpkey)" style="cursor:pointer">${jerseyHtml}<div class="lp-pname">${p.name}${minTag}</div></div>`;
       }).join('');
       return `<div class="lp-row">${chips}</div>`;
     }).join('');
     const usedHtml=lu.subsUsed.map(s=>{
       const snk=s.name.toLowerCase();
+      const isMotmSub=snk===globalMotmKey;
+      window.__lpPlayers[snk]={name:s.name,jersey:s.jersey,posAbbr:s.posAbbr,rating:s.rating,isMotm:isMotmSub,stats:s.stats};
       const t=subInTime[snk]||'';
       const sb=_lpBadgeInline(snk,playerGoals,playerAssists,playerCards);
-      const isMotmSub=snk===globalMotmKey;
       const rSpan=s.rating!=null?` <span style="font-size:7px;font-weight:700;background:${isMotmSub?'#93c5fd':_ratingColor(s.rating)};color:#111;padding:1px 3px;border-radius:4px">${isMotmSub?'★':''}${s.rating.toFixed(1)}</span>`:'';
-      return `<div class="lp-sub-row"><span style="color:var(--green)">↑</span> ${s.name}${t?` <span style="font-size:9px;color:var(--muted)">${t}</span>`:''}${sb?` ${sb}`:''}${rSpan}</div>`;
+      return `<div class="lp-sub-row" data-lpkey="${snk}" onclick="__lpShowPlayer(this.dataset.lpkey)" style="cursor:pointer"><span style="color:var(--green)">↑</span> ${s.name}${t?` <span style="font-size:9px;color:var(--muted)">${t}</span>`:''}${sb?` ${sb}`:''}${rSpan}</div>`;
     }).join('');
     const unusedHtml=lu.subsUnused.length?`<div class="lp-unused">${lu.subsUnused.join(', ')}</div>`:'';
     const teamAvg=allRated.length?Math.round(allRated.reduce((s,p)=>s+p.rating,0)/allRated.length*10)/10:null;
@@ -1731,6 +1754,50 @@ async function openTimeline(matchId){
 
 function closeTimeline(){
   document.getElementById('match-timeline').classList.remove('open');
+  __lpClose();
+}
+
+window.__lpPlayers={};
+function __lpShowPlayer(nk){
+  const p=window.__lpPlayers[nk];
+  if(!p) return;
+  const SECS=[
+    {hd:'Attacking', keys:['totalGoals','goalAssists','totalShots','shotsOnTarget','offsides']},
+    {hd:'Defence',   keys:['saves','goalsConceded','shotsFaced']},
+    {hd:'Discipline',keys:['foulsCommitted','foulsSuffered','yellowCards','redCards','ownGoals']},
+    {hd:'General',   keys:['appearances','subIns']},
+  ];
+  const KL={totalGoals:'Goals',goalAssists:'Assists',totalShots:'Shots',shotsOnTarget:'On Target',offsides:'Offsides',saves:'Saves',goalsConceded:'Goals Conceded',shotsFaced:'Shots Faced',foulsCommitted:'Fouls',foulsSuffered:'Fouled',yellowCards:'Yellow Card',redCards:'Red Card',ownGoals:'Own Goal',appearances:'Appearances',subIns:'As Sub'};
+  const st={};
+  for(const s of (p.stats||[])) st[s.name]=s.displayValue!=null?s.displayValue:s.value;
+  // ESPN always reports shotsFaced=0; derive it from saves + goalsConceded
+  if(parseFloat(st.shotsFaced||0)===0&&parseFloat(st.saves||0)>0)
+    st.shotsFaced=String(Math.round(parseFloat(st.saves||0)+parseFloat(st.goalsConceded||0)));
+  const isGK=(p.posAbbr||'').toUpperCase()==='G'||(p.posAbbr||'').toUpperCase()==='GK';
+  const statHtml=SECS.map(sec=>{
+    const keys=sec.hd==='Goalkeeping'
+      ?(isGK?sec.keys:sec.keys.filter(k=>parseFloat(st[k]||0)>0))
+      :sec.keys;
+    if(!keys.length) return '';
+    const rows=keys.map(k=>`<div class="lp-pp-stat-row"><span style="color:var(--muted)">${KL[k]}</span><span class="lp-pp-stat-val">${st[k]??0}</span></div>`).join('');
+    return `<div style="margin-bottom:6px"><div class="lp-pp-sec-hd">${sec.hd}</div>${rows}</div>`;
+  }).join('');
+  const rPillBg=p.isMotm?'#93c5fd':_ratingColor(p.rating);
+  const ratingHtml=p.rating!=null?`<span style="background:${rPillBg};color:#111;font-size:12px;font-weight:700;padding:2px 9px;border-radius:6px">${p.isMotm?'★ ':''}${p.rating.toFixed(1)}</span>`:'';
+  document.getElementById('lp-pp-header').innerHTML=`
+    <div style="text-align:center;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:8px">
+      <div style="font-size:22px;font-weight:900;color:var(--amber);line-height:1">#${p.jersey||'?'}</div>
+      <div style="font-size:13px;font-weight:700;margin-top:4px">${p.name}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px">
+        <span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">${p.posAbbr||'—'}</span>
+        ${ratingHtml}
+      </div>
+    </div>`;
+  document.getElementById('lp-pp-content').innerHTML=statHtml||'<div style="font-size:10px;color:var(--muted);text-align:center;padding:6px 0">No stats available</div>';
+  document.getElementById('lp-player-popup').classList.add('open');
+}
+function __lpClose(){
+  document.getElementById('lp-player-popup').classList.remove('open');
 }
 
 function openPredEditor(matchId, home, away) {
