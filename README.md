@@ -13,10 +13,16 @@ A single-file HTML dashboard for following the 2026 FIFA World Cup, built for an
 - **IST watchability** — every match rated by time window (Prime / Late / Graveyard / Morning / Afternoon)
 - **Importance scoring** — 1–5 stars based on team quality, match stakes, rivalry, and upset potential, with bonus weight for preferred teams
 - **Country flags** — via flagcdn.com
+- **Match popup** — click any match card for a detailed view with three tabs:
+  - **Lineups** — pitch-view formation with jersey chips, player ratings (position-aware), MOTM star, manager name, team average rating
+  - **Incidents** — timeline of goals, assists, cards, and substitutions
+  - **Match Facts** — split-bar team stats using each team's kit colours (home kit for home, away kit for away)
+- **Player ratings** — computed from ESPN stats weighted by position (GK/Def/Mid/Fwd), with result-context bonus/penalty
+- **Man of the Match** — single best-rated player across both teams, shown only after full time
 
 ## Viewing
 
-Open `worldcup2026.html` directly in any modern browser. No server, build step, or dependencies needed.
+Open `index.html` directly in any modern browser. No server, build step, or dependencies needed.
 
 Designed for a **1920×1080** display. The layout scales down to fit smaller viewports automatically.
 
@@ -28,10 +34,13 @@ Designed for a **1920×1080** display. The layout scales down to fit smaller vie
 
 ## Data
 
-Match schedule and bracket structure are hardcoded from the official FIFA 2026 fixture list. Live scores are pulled from the ESPN free API (`site.api.espn.com`) — no API key required.
+Match schedule and bracket structure are hardcoded from the official FIFA 2026 fixture list. Live scores are pulled from the ESPN free API (`site.api.espn.com`) — no API key required. Lineups, stats, and incidents are fetched from the ESPN match summary endpoint on demand.
+
+All 48 team managers are hardcoded from official FIFA sources.
 
 ## Constraints
 
 - Single file, no build tools, no npm, no frameworks
 - No localStorage or sessionStorage
+- File size under 200 KB
 - External resources: country flags from [flagcdn.com](https://flagcdn.com) only
