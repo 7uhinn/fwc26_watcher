@@ -1557,7 +1557,7 @@ function _lpBadgeChip(jersey,nk,goals,assists,cards,rating,isMotm){
   if(g) b+=`<span style="font-size:8px;line-height:1">⚽${g>1?'<span style="font-size:8px">×'+g+'</span>':''}</span>`;
   const a=assists[nk];if(a) b+=`<span style="font-size:8px;line-height:1">🅰️${a>1?'<span style="font-size:8px">×'+a+'</span>':''}</span>`;
   b+=_lpCardSpan(cards[nk]);
-  const rPill=rating!=null?`<div style="position:absolute;bottom:-8px;left:-12px;background:${isMotm?'#93c5fd':_ratingColor(rating)};color:#111;font-size:6.5px;font-weight:700;padding:1px 3px;border-radius:4px;line-height:1.4;white-space:nowrap">${isMotm?'★':''}${rating.toFixed(1)}</div>`:'';
+  const rPill=rating!=null?`<div style="position:absolute;bottom:3px;left:-16px;background:${isMotm?'#93c5fd':_ratingColor(rating)};color:#111;font-size:6.5px;font-weight:700;padding:1px 3px;border-radius:4px;line-height:1.4;white-space:nowrap">${isMotm?'★':''}${rating.toFixed(1)}</div>`:'';
   if(!b&&!rPill) return `<div class="lp-jersey">${jersey}</div>`;
   return `<div style="position:relative;display:inline-block"><div class="lp-jersey">${jersey}</div>${rPill}${b?`<div style="position:absolute;top:0;right:-12px;display:flex;align-items:center;gap:1px;line-height:1">${b}</div>`:''}</div>`;
 }
