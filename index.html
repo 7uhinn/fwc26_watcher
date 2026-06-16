@@ -833,7 +833,7 @@ const GROUPS = {
   E:['GER','CUW','CIV','ECU'],
   F:['NED','JPN','SWE','TUN'],
   G:['BEL','EGY','IRN','NZL'],
-  H:['ESP','CPV','SAU','URU'],
+  H:['ESP','CPV','KSA','URU'],
   I:['FRA','SEN','IRQ','NOR'],
   J:['ARG','ALG','AUT','JOR'],
   K:['POR','COD','UZB','COL'],
@@ -848,7 +848,7 @@ const TEAM_NAMES = {
   GER:'Germany',CUW:'Curaçao',CIV:"Ivory Coast",ECU:'Ecuador',
   NED:'Netherlands',JPN:'Japan',SWE:'Sweden',TUN:'Tunisia',
   BEL:'Belgium',EGY:'Egypt',IRN:'Iran',NZL:'New Zealand',
-  ESP:'Spain',CPV:'Cape Verde',SAU:'Saudi Arabia',URU:'Uruguay',
+  ESP:'Spain',CPV:'Cape Verde',KSA:'Saudi Arabia',URU:'Uruguay',
   FRA:'France',SEN:'Senegal',IRQ:'Iraq',NOR:'Norway',
   ARG:'Argentina',ALG:'Algeria',AUT:'Austria',JOR:'Jordan',
   POR:'Portugal',COD:'Congo DR',UZB:'Uzbekistan',COL:'Colombia',
@@ -872,7 +872,7 @@ const MANAGERS = {
   ALG:'V. Petković', COD:'S. Desabre',EGY:'H. Hassan',    RSA:'H. Broos',
   TUN:'S. Lamouchi', CPV:'P. Brito',
   // AFC
-  JPN:'H. Moriyasu', SAU:'G. Donis',  AUS:'T. Popovic',   KOR:'H. Myung-bo',
+  JPN:'H. Moriyasu', KSA:'G. Donis',  AUS:'T. Popovic',   KOR:'H. Myung-bo',
   IRN:'A. Ghalenoei',IRQ:'G. Arnold', QAT:'J. Lopetegui', JOR:'J. Sellami',
   UZB:'F. Cannavaro',
   // OFC
@@ -885,7 +885,7 @@ const FIFA_RANK = {
   CRO:16,SEN:17,AUS:18,SUI:19,ECU:20,PAR:21,TUR:22,
   NOR:23,SWE:24,ALG:25,AUT:26,GHA:27,SCO:28,TUN:29,
   IRQ:30,NZL:31,EGY:32,RSA:33,KOR:34,CZE:35,HAI:36,
-  IRN:37,CAN:38,BIH:39,QAT:40,JOR:41,CPV:42,SAU:43,COD:44,
+  IRN:37,CAN:38,BIH:39,QAT:40,JOR:41,CPV:42,KSA:43,COD:44,
   UZB:45,PAN:46,CUW:48,CIV:50
 };
 
@@ -895,7 +895,7 @@ const FLAG_MAP = {
   SUI:'ch',BRA:'br',MAR:'ma',HAI:'ht',SCO:'gb-sct',USA:'us',PAR:'py',
   AUS:'au',TUR:'tr',GER:'de',CUW:'cw',CIV:'ci',ECU:'ec',NED:'nl',
   JPN:'jp',SWE:'se',TUN:'tn',BEL:'be',EGY:'eg',IRN:'ir',NZL:'nz',
-  ESP:'es',CPV:'cv',SAU:'sa',URU:'uy',FRA:'fr',SEN:'sn',IRQ:'iq',
+  ESP:'es',CPV:'cv',KSA:'sa',URU:'uy',FRA:'fr',SEN:'sn',IRQ:'iq',
   NOR:'no',ARG:'ar',ALG:'dz',AUT:'at',JOR:'jo',POR:'pt',COD:'cd',
   UZB:'uz',COL:'co',ENG:'gb-eng',CRO:'hr',GHA:'gh',PAN:'pa'
 };
@@ -909,7 +909,7 @@ const FLAG_COLORS = {
   GER:'#000000',CUW:'#002B7F',CIV:'#F77F00',ECU:'#FFD100',
   NED:'#FF6600',JPN:'#BC002D',SWE:'#006AA7',TUN:'#E70013',
   BEL:'#000000',EGY:'#CE1126',IRN:'#239F40',NZL:'#00247D',
-  ESP:'#AA151B',CPV:'#003893',SAU:'#006C35',URU:'#5EB6E4',
+  ESP:'#AA151B',CPV:'#003893',KSA:'#006C35',URU:'#5EB6E4',
   FRA:'#002395',SEN:'#00853F',IRQ:'#CE1126',NOR:'#EF2B2D',
   ARG:'#74ACDF',ALG:'#006233',AUT:'#ED2939',JOR:'#007A3D',
   POR:'#006600',COD:'#007FFF',UZB:'#1EB53A',COL:'#FCD116',
@@ -943,7 +943,7 @@ const ESPN_TO_FIFA = {
   USA:'USA',MEX:'MEX',CAN:'CAN',BRA:'BRA',ARG:'ARG',ENG:'ENG',
   GER:'GER',FRA:'FRA',ESP:'ESP',POR:'POR',NED:'NED',BEL:'BEL',
   CRO:'CRO',SEN:'SEN',MAR:'MAR',JPN:'JPN',KOR:'KOR',AUS:'AUS',
-  URU:'URU',COL:'COL',ECU:'ECU',PAR:'PAR',TUR:'TUR',SAU:'SAU',
+  URU:'URU',COL:'COL',ECU:'ECU',PAR:'PAR',TUR:'TUR',KSA:'KSA',
   QAT:'QAT',IRN:'IRN',NOR:'NOR',SWE:'SWE',TUN:'TUN',GHA:'GHA',
   EGY:'EGY',BIH:'BIH',BAH:'BIH',ZAF:'RSA',RSA:'RSA',CZE:'CZE',
   SUI:'SUI',SWI:'SUI',HAI:'HAI',SCO:'SCO',CUW:'CUW',CIV:'CIV',
@@ -1010,11 +1010,11 @@ const MATCHES = [
 {id:42,stage:'GROUP',group:'G',matchday:3,home:'EGY',away:'IRN', utcDate:'2026-06-27',utcTime:'03:00',venue:'Lumen Field',city:'Seattle',homeScore:null,awayScore:null,status:'SCHEDULED'},
 // ── GROUP H ──────────────────────────────────────────────
 {id:43,stage:'GROUP',group:'H',matchday:1,home:'ESP',away:'CPV', utcDate:'2026-06-15',utcTime:'16:00',venue:'Mercedes-Benz Stadium',city:'Atlanta',homeScore:null,awayScore:null,status:'SCHEDULED'},
-{id:44,stage:'GROUP',group:'H',matchday:1,home:'SAU',away:'URU', utcDate:'2026-06-15',utcTime:'22:00',venue:'Hard Rock Stadium',city:'Miami',homeScore:null,awayScore:null,status:'SCHEDULED'},
-{id:45,stage:'GROUP',group:'H',matchday:2,home:'ESP',away:'SAU', utcDate:'2026-06-21',utcTime:'16:00',venue:'Mercedes-Benz Stadium',city:'Atlanta',homeScore:null,awayScore:null,status:'SCHEDULED'},
+{id:44,stage:'GROUP',group:'H',matchday:1,home:'KSA',away:'URU', utcDate:'2026-06-15',utcTime:'22:00',venue:'Hard Rock Stadium',city:'Miami',homeScore:null,awayScore:null,status:'SCHEDULED'},
+{id:45,stage:'GROUP',group:'H',matchday:2,home:'ESP',away:'KSA', utcDate:'2026-06-21',utcTime:'16:00',venue:'Mercedes-Benz Stadium',city:'Atlanta',homeScore:null,awayScore:null,status:'SCHEDULED'},
 {id:46,stage:'GROUP',group:'H',matchday:2,home:'URU',away:'CPV', utcDate:'2026-06-21',utcTime:'22:00',venue:'Hard Rock Stadium',city:'Miami',homeScore:null,awayScore:null,status:'SCHEDULED'},
 {id:47,stage:'GROUP',group:'H',matchday:3,home:'ESP',away:'URU', utcDate:'2026-06-27',utcTime:'00:00',venue:'Estadio Akron',city:'Guadalajara',homeScore:null,awayScore:null,status:'SCHEDULED'},
-{id:48,stage:'GROUP',group:'H',matchday:3,home:'CPV',away:'SAU', utcDate:'2026-06-27',utcTime:'00:00',venue:'NRG Stadium',city:'Houston',homeScore:null,awayScore:null,status:'SCHEDULED'},
+{id:48,stage:'GROUP',group:'H',matchday:3,home:'CPV',away:'KSA', utcDate:'2026-06-27',utcTime:'00:00',venue:'NRG Stadium',city:'Houston',homeScore:null,awayScore:null,status:'SCHEDULED'},
 // ── GROUP I ──────────────────────────────────────────────
 {id:49,stage:'GROUP',group:'I',matchday:1,home:'FRA',away:'SEN', utcDate:'2026-06-16',utcTime:'19:00',venue:'MetLife Stadium',city:'East Rutherford',homeScore:null,awayScore:null,status:'SCHEDULED'},
 {id:50,stage:'GROUP',group:'I',matchday:1,home:'IRQ',away:'NOR', utcDate:'2026-06-16',utcTime:'22:00',venue:'Gillette Stadium',city:'Boston',homeScore:null,awayScore:null,status:'SCHEDULED'},
