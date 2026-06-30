@@ -1046,7 +1046,7 @@ const MATCHES = [
 // ── ROUND OF 32 (R32) ──────────────────────────────────────
 // Bracket position strings used before teams are determined
 {id:73, stage:'R32',bracketSlot:'R32-1',home:null,away:null, utcDate:'2026-06-28',utcTime:'19:00',venue:'SoFi Stadium',city:'Los Angeles',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'2A',awaySlot:'2B'},
-{id:74, stage:'R32',bracketSlot:'R32-2',home:null,away:null, utcDate:'2026-06-29',utcTime:'20:30',venue:'Gillette Stadium',city:'Boston',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'1E',awaySlot:'Annex C:E'},
+{id:74, stage:'R32',bracketSlot:'R32-2',home:'GER',away:'PAR', utcDate:'2026-06-29',utcTime:'20:30',venue:'Gillette Stadium',city:'Boston',homeScore:1,awayScore:1,pen:true,penHome:3,penAway:4,aet:true,status:'FINISHED',homeSlot:'1E',awaySlot:'Annex C:E'},
 {id:75, stage:'R32',bracketSlot:'R32-3',home:null,away:null, utcDate:'2026-06-30',utcTime:'01:00',venue:'Estadio BBVA',city:'Monterrey',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'1F',awaySlot:'2C'},
 {id:76, stage:'R32',bracketSlot:'R32-4',home:null,away:null, utcDate:'2026-06-29',utcTime:'17:00',venue:'NRG Stadium',city:'Houston',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'1C',awaySlot:'2F'},
 {id:77, stage:'R32',bracketSlot:'R32-5',home:null,away:null, utcDate:'2026-06-30',utcTime:'21:00',venue:'MetLife Stadium',city:'East Rutherford',homeScore:null,awayScore:null,status:'SCHEDULED',homeSlot:'1I',awaySlot:'Annex C:I'},
@@ -1263,7 +1263,11 @@ function _tlIcon(type){
   if(type==='yellow')       return '<span class="tl-card-y"></span>';
   if(type==='red')          return '<span class="tl-card-r"></span>';
   if(type==='yellow-red')   return '<span class="tl-card-y"></span><span class="tl-card-r"></span>';
-  if(type==='var')          return '<span style="font-size:10px;font-weight:700;color:var(--amber)">VAR</span>';
+  if(type==='var')            return '<span style="font-size:10px;font-weight:700;color:var(--amber)">VAR</span>';
+  if(type==='penalty-missed') return '⚽<span style="font-size:9px;color:var(--red)"> ✕</span>';
+  if(type==='penalty-saved')  return '⚽<span style="font-size:9px;color:var(--muted)"> saved</span>';
+  if(type==='penalty-shootout-scored') return '⚽<span style="font-size:9px;color:var(--green)"> ✓</span>';
+  if(type==='penalty-shootout-missed') return '⚽<span style="font-size:9px;color:var(--red)"> ✕</span>';
   if(type==='substitution') return '<span style="font-size:11px;color:var(--green)">↑</span>';
   return '';
 }
@@ -1303,10 +1307,16 @@ function _parseSummaryIncidents(sumData,m){
     // ── Delay events ──
     if(typeKey==='start-delay'){
       const txt=ev.text||'';
-      if(txt.toLowerCase().includes('drinks break')&&!drinksActive){
+      const txtLow=txt.toLowerCase();
+      if(txtLow.includes('drinks break')&&!drinksActive){
         drinksActive=true;
         incs.push({minStr,type:'other',player:null,team:null,evText:'Drinks Break',
-                   isInjury:false,assist:null,playerOut:null,varNote:null,varTypeKey:null,varType:null});
+                   isInjury:false,assist:null,playerOut:null,varNote:null,varTypeKey:null,varType:null,clockVal});
+      } else if(txtLow.includes('var')){
+        // VAR review — push a visible event; a var---* decision event may or may not follow
+        incs.push({minStr,type:'var',player:null,team:null,varNote:'VAR Review',
+                   varTypeKey:'var-review',varType:'VAR Review',
+                   assist:null,playerOut:null,isInjury:false,evText:null,clockVal});
       } else if(txt.includes('(')&&teamId){
         // Injury delay — track team+clock, skip display
         injuredTeams.set(teamId,clockVal);
@@ -1318,7 +1328,7 @@ function _parseSummaryIncidents(sumData,m){
       if(drinksActive){
         drinksActive=false;
         incs.push({minStr,type:'other',player:null,team:null,evText:'Drinks Break End',
-                   isInjury:false,assist:null,playerOut:null,varNote:null,varTypeKey:null,varType:null});
+                   isInjury:false,assist:null,playerOut:null,varNote:null,varTypeKey:null,varType:null,clockVal});
       }
       continue;
     }
@@ -1329,7 +1339,9 @@ function _parseSummaryIncidents(sumData,m){
       if(ev.ownGoal||typeKey.includes('own')) type='own-goal';
       else if(ev.penaltyKick||typeKey.includes('penalty')) type='penalty';
       else type='goal';
-    } else if(typeKey==='yellow-card'||typeText==='yellow card') type='yellow';
+    } else if(typeKey==='penalty---missed') type='penalty-missed';
+    else if(typeKey==='penalty---saved')  type='penalty-saved';
+    else if(typeKey==='yellow-card'||typeText==='yellow card') type='yellow';
     else if(typeKey==='red-card'||typeText==='red card') type='red';
     else if(typeKey==='yellow-red-card'||(typeText.includes('yellow')&&typeText.includes('red'))) type='yellow-red';
     else if(typeKey==='substitution') type='substitution';
@@ -1360,9 +1372,80 @@ function _parseSummaryIncidents(sumData,m){
     const varType=type==='var'?(ev.type?.text||null):null;
     const evText=type==='other'?(ev.text||ev.type?.text||typeKey||''):null;
 
-    incs.push({minStr,type,player,team:side,assist,playerOut,isInjury,varNote,varTypeKey,varType,evText});
+    incs.push({minStr,type,player,team:side,assist,playerOut,isInjury,varNote,varTypeKey,varType,evText,clockVal});
   }
+
+  // ── Commentary VAR decisions (ESPN never puts these in keyEvents) ──
+  for(const c of (sumData.commentary||[])){
+    const play=c.play;
+    if(!play) continue;
+    const typeKey=(play.type?.type||'');
+    if(!typeKey.startsWith('var---')) continue;
+    const minStr=play.clock?.displayValue||'';
+    const clockVal=play.clock?.value||0;
+    const player=_abbrevName(play.participants?.[0]?.athlete?.displayName||'')||null;
+    const varNote=c.text||null;
+    const varTypeKey=typeKey;
+    const varType=play.type?.text||null;
+    // Resolve to home/away side via team display name
+    const teamDisplay=play.team?.displayName||null;
+    let side=null;
+    if(teamDisplay&&m.home&&m.away){
+      if(teamDisplay===(TEAM_NAMES[m.home]||m.home)) side='home';
+      else if(teamDisplay===(TEAM_NAMES[m.away]||m.away)) side='away';
+    }
+    incs.push({minStr,type:'var',player,team:side,
+               assist:null,playerOut:null,isInjury:false,
+               varNote,varTypeKey,varType,evText:null,clockVal});
+  }
+  // ── Penalty Shootout ──
+  if(Array.isArray(sumData.shootout)&&sumData.shootout.length){
+    const PSO_BASE=1e6;
+    incs.push({minStr:'',type:'other',player:null,team:null,
+               evText:'— Penalty Shootout —',isInjury:false,
+               assist:null,playerOut:null,varNote:null,varTypeKey:null,varType:null,
+               clockVal:PSO_BASE-1});
+    const shotsMap={};
+    for(const ts of sumData.shootout){
+      const id=String(ts.id||'');
+      const side=id===String(m.espnHomeTeamId)?'home':id===String(m.espnAwayTeamId)?'away':null;
+      if(!side) continue;
+      for(const shot of (ts.shots||[])){
+        const n=shot.shotNumber;
+        if(!shotsMap[n]) shotsMap[n]={};
+        shotsMap[n][side]=shot;
+      }
+    }
+    const shotNums=Object.keys(shotsMap).map(Number).sort((a,b)=>a-b);
+    let psoHome=0,psoAway=0;
+    for(const n of shotNums){
+      for(const side of ['home','away']){
+        const shot=shotsMap[n]?.[side];
+        if(!shot) continue;
+        if(shot.didScore){if(side==='home') psoHome++;else psoAway++;}
+        const type=shot.didScore?'penalty-shootout-scored':'penalty-shootout-missed';
+        incs.push({minStr:`${psoHome}–${psoAway}`,type,player:shot.player||null,team:side,
+                   assist:null,playerOut:null,isInjury:false,
+                   varNote:null,varTypeKey:null,varType:null,evText:null,
+                   clockVal:PSO_BASE+n*2+(side==='home'?0:1)});
+      }
+    }
+  }
+
+  incs.sort((a,b)=>(a.clockVal||0)-(b.clockVal||0));
   return incs;
+}
+
+function _varActionLabel(note,vtype){
+  const s=(note||'').replace(/^var\s*(?:decision|review)[:\s]*/i,'').trim();
+  if(/^No Goal/i.test(s))        return 'No Goal';
+  if(/^No Penalty/i.test(s))     return 'No Penalty';
+  if(/^Goal/i.test(s))           return 'Goal Confirmed';
+  if(/^Penalty/i.test(s))        return 'Penalty Awarded';
+  if(/^Card upgraded/i.test(s))  return 'Card Upgraded';
+  if(/^Other Decision/i.test(s)) return 'Cancelled';
+  if(s) return s.split(/\s+/).slice(0,4).join(' ');
+  return(vtype||'').replace(/^var\s*[-–]\s*/i,'')||'Decision';
 }
 
 function _renderIncidentRows(incidents){
@@ -1375,8 +1458,7 @@ function _renderIncidentRows(incidents){
         return `<div class="tl-row"><div style="grid-column:1/-1;text-align:center;font-size:10px;color:var(--muted)">${inc.minStr?`${inc.minStr} · `:''}${note}</div></div>`;
       }
       if(inc.type==='var'){
-        const action=(inc.varNote||'').replace(/^var\s*(?:decision|review)[:\s]*/i,'').trim()
-                   ||(inc.varType?inc.varType.replace(/^var\s*[-–]\s*/i,''):'Decision');
+        const action=_varActionLabel(inc.varNote,inc.varType);
         const line=`${_tlIcon('var')}${inc.player?' '+inc.player:''}${action?' · '+action:''}`;
         return `<div class="tl-row"><div style="grid-column:1/-1;text-align:center;font-size:10px">${inc.minStr?`${inc.minStr} · `:''}${line}</div></div>`;
       }
@@ -1389,8 +1471,7 @@ function _renderIncidentRows(incidents){
       const outLine=inc.playerOut?`<br><span style="font-size:10px;color:var(--red)">↓ ${inc.playerOut}${injBadge}</span>`:'';
       content=inLine+outLine;
     } else if(inc.type==='var'){
-      const action=(inc.varNote||'').replace(/^var\s*(?:decision|review)[:\s]*/i,'').trim()
-                 ||(inc.varType?inc.varType.replace(/^var\s*[-–]\s*/i,''):'Decision');
+      const action=_varActionLabel(inc.varNote,inc.varType);
       content=inc.player?`${icon} ${inc.player}`:icon;
       content+=`<br><span style="font-size:10px;color:var(--muted)">${action}</span>`;
     } else if(inc.type==='other'){
@@ -1693,20 +1774,25 @@ function _renderLineups(lineups,incidents,isFinished){
 async function openTimeline(matchId){
   const m=MATCHES.find(x=>x.id===matchId);
   if(!m) return;
-  const homeName=TEAM_NAMES[m.home]||m.home||m.homeSlot||'TBD';
-  const awayName=TEAM_NAMES[m.away]||m.away||m.awaySlot||'TBD';
+  // Resolve effective team codes for knockout matches (home/away are null until teams are known)
+  const _tlSt={};for(const g of 'ABCDEFGHIJKL') _tlSt[g]=computeGroupStandings(g);
+  const _tlTr=computeThirdPlaceStandings();
+  const effHome=m.home||resolveSlot(m.homeSlot,_tlSt,_tlTr)||m.homeSlot||'TBD';
+  const effAway=m.away||resolveSlot(m.awaySlot,_tlSt,_tlTr)||m.awaySlot||'TBD';
+  const homeName=TEAM_NAMES[effHome]||effHome;
+  const awayName=TEAM_NAMES[effAway]||effAway;
   document.getElementById('tl-teams').textContent=`${homeName}  vs  ${awayName}`;
   document.getElementById('tl-meta').textContent=
-    [m.stage==='GROUP'?`Group ${m.group} · MD${m.matchday}`:m.stage,m.venue,m.city].filter(Boolean).join(' · ');
+    [m.stage==='GROUP'?`Group ${m.group} · MD${m.matchday}`:STAGE_LABEL[m.stage]||m.stage,m.venue,m.city].filter(Boolean).join(' · ');
   const sr=document.getElementById('tl-score-row');
   if(m.status==='FINISHED'||m.status==='IN_PLAY'){
     let sc=`${m.homeScore??'–'} – ${m.awayScore??'–'}`;
     if(m.pen&&m.penHome!=null) sc=`(${m.penHome}) ${m.homeScore} – ${m.awayScore} (${m.penAway})`;
-    const suffix=m.pen?' <span style="font-size:11px;color:var(--muted)">pso</span>':m.aet?' <span style="font-size:11px;color:var(--muted)">aet</span>':'';
+    const suffix=(!m.pen&&m.aet)?' <span style="font-size:11px;color:var(--muted)">aet</span>':'';
     sr.innerHTML=sc+suffix;sr.style.display='';
   } else {sr.style.display='none';}
-  document.getElementById('tl-home-label').textContent=(m.home||'').toUpperCase();
-  document.getElementById('tl-away-label').textContent=(m.away||'').toUpperCase();
+  document.getElementById('tl-home-label').textContent=effHome.toUpperCase();
+  document.getElementById('tl-away-label').textContent=effAway.toUpperCase();
   tlTab('events');
   document.getElementById('match-timeline').classList.add('open');
   const evEl=document.getElementById('tl-events');
@@ -2767,10 +2853,11 @@ function resolveSlot(slot, stMap, thirdRanked) {
   if(mWR32) {
     const bm=MATCHES.filter(m=>m.stage==='R32')[+mWR32[1]-1];
     const s=getScoreFor(bm);
-    if(s.homeScore!==null&&s.homeScore!==s.awayScore) {
+    if(s.homeScore!==null&&(s.homeScore!==s.awayScore||(bm.pen&&bm.penHome!=null))) {
       const h=bm.home||resolveSlot(bm.homeSlot,stMap,thirdRanked);
       const a=bm.away||resolveSlot(bm.awaySlot,stMap,thirdRanked);
-      return s.homeScore>s.awayScore?h:a;
+      if(s.homeScore!==s.awayScore) return s.homeScore>s.awayScore?h:a;
+      return bm.penHome>bm.penAway?h:a;
     }
     return null;
   }
@@ -2779,10 +2866,11 @@ function resolveSlot(slot, stMap, thirdRanked) {
   if(mWR16) {
     const bm=MATCHES.filter(m=>m.stage==='R16')[+mWR16[1]-1];
     const s=getScoreFor(bm);
-    if(s.homeScore!==null&&s.homeScore!==s.awayScore) {
+    if(s.homeScore!==null&&(s.homeScore!==s.awayScore||(bm.pen&&bm.penHome!=null))) {
       const h=bm.home||resolveSlot(bm.homeSlot,stMap,thirdRanked);
       const a=bm.away||resolveSlot(bm.awaySlot,stMap,thirdRanked);
-      return s.homeScore>s.awayScore?h:a;
+      if(s.homeScore!==s.awayScore) return s.homeScore>s.awayScore?h:a;
+      return bm.penHome>bm.penAway?h:a;
     }
     return null;
   }
@@ -2791,10 +2879,11 @@ function resolveSlot(slot, stMap, thirdRanked) {
   if(mWQF) {
     const bm=MATCHES.filter(m=>m.stage==='QF')[+mWQF[1]-1];
     const s=getScoreFor(bm);
-    if(s.homeScore!==null&&s.homeScore!==s.awayScore) {
+    if(s.homeScore!==null&&(s.homeScore!==s.awayScore||(bm.pen&&bm.penHome!=null))) {
       const h=bm.home||resolveSlot(bm.homeSlot,stMap,thirdRanked);
       const a=bm.away||resolveSlot(bm.awaySlot,stMap,thirdRanked);
-      return s.homeScore>s.awayScore?h:a;
+      if(s.homeScore!==s.awayScore) return s.homeScore>s.awayScore?h:a;
+      return bm.penHome>bm.penAway?h:a;
     }
     return null;
   }
@@ -2803,10 +2892,11 @@ function resolveSlot(slot, stMap, thirdRanked) {
   if(mWSF) {
     const bm=MATCHES.filter(m=>m.stage==='SF')[+mWSF[1]-1];
     const s=getScoreFor(bm);
-    if(s.homeScore!==null&&s.homeScore!==s.awayScore) {
+    if(s.homeScore!==null&&(s.homeScore!==s.awayScore||(bm.pen&&bm.penHome!=null))) {
       const h=bm.home||resolveSlot(bm.homeSlot,stMap,thirdRanked);
       const a=bm.away||resolveSlot(bm.awaySlot,stMap,thirdRanked);
-      return s.homeScore>s.awayScore?h:a;
+      if(s.homeScore!==s.awayScore) return s.homeScore>s.awayScore?h:a;
+      return bm.penHome>bm.penAway?h:a;
     }
     return null;
   }
@@ -2815,10 +2905,11 @@ function resolveSlot(slot, stMap, thirdRanked) {
   if(mLSF) {
     const bm=MATCHES.filter(m=>m.stage==='SF')[+mLSF[1]-1];
     const s=getScoreFor(bm);
-    if(s.homeScore!==null&&s.homeScore!==s.awayScore) {
+    if(s.homeScore!==null&&(s.homeScore!==s.awayScore||(bm.pen&&bm.penHome!=null))) {
       const h=bm.home||resolveSlot(bm.homeSlot,stMap,thirdRanked);
       const a=bm.away||resolveSlot(bm.awaySlot,stMap,thirdRanked);
-      return s.homeScore>s.awayScore?a:h;
+      if(s.homeScore!==s.awayScore) return s.homeScore>s.awayScore?a:h;
+      return bm.penHome>bm.penAway?a:h;
     }
     return null;
   }
@@ -2873,6 +2964,10 @@ function renderBracket() {
     if(s.homeScore===null) return null;
     if(s.homeScore>s.awayScore) return true;
     if(s.awayScore>s.homeScore) return false;
+    if(bm.pen&&bm.penHome!=null&&bm.penAway!=null){
+      if(bm.penHome>bm.penAway) return true;
+      if(bm.penAway>bm.penHome) return false;
+    }
     return null;
   }
 
@@ -2913,9 +3008,9 @@ function renderBracket() {
       const botDisp=bmRef?.pen&&bmRef?.penAway!=null?`${botScore}(${bmRef.penAway})`:String(botScore);
       out+=`<text class="${scoreClass}" x="${x+w-5}" y="${y+33}" text-anchor="end">${botDisp}</text>`;
     }
-    if(bmRef?.aet&&!isLive) out+=`<text style="font-size:5px;fill:var(--muted);font-family:-apple-system,sans-serif" x="${x+w-3}" y="${y+39}" text-anchor="end">${bmRef.pen?'pso':'aet'}</text>`;
+    if(bmRef?.aet&&!bmRef?.pen&&!isLive) out+=`<text style="font-size:5px;fill:var(--muted);font-family:-apple-system,sans-serif" x="${x+w-3}" y="${y+39}" text-anchor="end">aet</text>`;
 
-    if(isLive) out+=`<circle cx="${x+w-4}" cy="${y+3}" r="2.5" fill="var(--gold)"><animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite"/></circle>`;
+    if(isLive) out+=`<rect x="${x+0.75}" y="${y+0.75}" width="${w-1.5}" height="${MH-1.5}" rx="2" fill="none" stroke="var(--gold)" stroke-width="1.5"><animate attributeName="stroke-opacity" values="1;0.25;1" dur="1.4s" repeatCount="indefinite"/></rect>`;
     if(predictionMode&&bmRef&&bmRef.status!=='FINISHED'&&bmRef.status!=='IN_PLAY') {
       out+=`<rect class="pred-clickable" x="${x}" y="${y}" width="${w}" height="${MH}" fill="transparent" onclick="openPredEditor(${bmRef.id},'${topCode||''}','${botCode||''}')"/>`;
     }
@@ -3212,6 +3307,11 @@ function _stampUpdated(){
 
 function _applyEvents(events){
   let hasLive=false;
+  // Build standings context once for knockout slot resolution
+  const _stMap={};
+  for(const g of 'ABCDEFGHIJKL') _stMap[g]=computeGroupStandings(g);
+  const _thirdRanked=computeThirdPlaceStandings();
+
   events.forEach(ev=>{
     const state=ev.status?.type?.state;
     if(state==='in') hasLive=true;
@@ -3239,23 +3339,38 @@ function _applyEvents(events){
     }
 
     const evDate=ev.date?ev.date.slice(0,10):'';
-    const match=MATCHES.find(m=>
+    // Direct lookup for group matches (home/away already set)
+    let match=MATCHES.find(m=>
       ((m.home===hCode&&m.away===aCode)||(m.home===aCode&&m.away===hCode))
       &&(m.utcDate===evDate||!evDate)
     );
+    // Knockout matches have home/away null — resolve via slots
+    let effMatchHome=match?.home;
+    if(!match){
+      match=MATCHES.find(m=>{
+        if(m.home!==null||m.away!==null) return false;
+        if(evDate&&m.utcDate!==evDate) return false;
+        const effH=resolveSlot(m.homeSlot,_stMap,_thirdRanked);
+        const effA=resolveSlot(m.awaySlot,_stMap,_thirdRanked);
+        if(!effH||!effA) return false;
+        return (effH===hCode&&effA===aCode)||(effH===aCode&&effA===hCode);
+      });
+      if(match) effMatchHome=resolveSlot(match.homeSlot,_stMap,_thirdRanked);
+    }
     if(match){
-      if(match.home===hCode){match.homeScore=hScore;match.awayScore=aScore;match.penHome=penH;match.penAway=penA;}
+      if(effMatchHome===hCode){match.homeScore=hScore;match.awayScore=aScore;match.penHome=penH;match.penAway=penA;}
       else{match.homeScore=aScore;match.awayScore=hScore;match.penHome=penA;match.penAway=penH;}
       match.status=state==='post'?'FINISHED':'IN_PLAY';
       match.espnId=ev.id;
-      match.espnHomeTeamId=hc.team?.id;
-      match.espnAwayTeamId=ac.team?.id;
+      // Store IDs relative to OUR home/away so _parseSummaryIncidents assigns sides correctly
+      if(effMatchHome===hCode){match.espnHomeTeamId=hc.team?.id;match.espnAwayTeamId=ac.team?.id;}
+      else{match.espnHomeTeamId=ac.team?.id;match.espnAwayTeamId=hc.team?.id;}
       match.clock=ev.status?.displayClock||null;
       match.aet=isAET||isPen;
       match.pen=isPen;
       const hTeamId=hc.team?.id;
       const aTeamId=ac.team?.id;
-      const espnHomeIsOurHome=match.home===hCode;
+      const espnHomeIsOurHome=effMatchHome===hCode;
       const incidents=[];let rcH=0,rcA=0;
       (comp.details||[]).forEach(d=>{
         const dId=d.team?.id;
@@ -3448,7 +3563,7 @@ function renderMobileBracket() {
     if(sc.homeScore!=null) o+=`<text class="${wd===true?'br-text-score':wd===false?'br-text-tbd':'br-text-score'}" x="${x+w-3}" y="${y+pad+11}" text-anchor="end">${sc.homeScore}</text>`;
     o+=slotLine(ac,aSlot,half+pad,wd===true);
     if(sc.awayScore!=null) o+=`<text class="${wd===false?'br-text-score':wd===true?'br-text-tbd':'br-text-score'}" x="${x+w-3}" y="${y+half+pad+11}" text-anchor="end">${sc.awayScore}</text>`;
-    if(live) o+=`<circle cx="${x+w-4}" cy="${y+4}" r="2" fill="var(--gold)"><animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite"/></circle>`;
+    if(live) o+=`<rect x="${x+0.75}" y="${y+0.75}" width="${w-1.5}" height="${MH-1.5}" rx="2" fill="none" stroke="var(--gold)" stroke-width="1.5"><animate attributeName="stroke-opacity" values="1;0.25;1" dur="1.4s" repeatCount="indefinite"/></rect>`;
     if(predictionMode&&bm&&bm.status!=='FINISHED'&&bm.status!=='IN_PLAY')
       o+=`<rect class="pred-clickable" x="${x}" y="${y}" width="${w}" height="${MH}" fill="transparent" onclick="openPredEditor(${bm.id},'${hc||''}','${ac||''}')"/>`;
     return o;
