@@ -3388,7 +3388,8 @@ function _applyEvents(events){
       if(effMatchHome===hCode){match.espnHomeTeamId=hc.team?.id;match.espnAwayTeamId=ac.team?.id;}
       else{match.espnHomeTeamId=ac.team?.id;match.espnAwayTeamId=hc.team?.id;}
       match.clock=ev.status?.displayClock||null;
-      match.clockFetchedAt=state==='in'?Date.now():null;
+      match.period=ev.status?.period||null;
+      if(state==='in') match.clockFetchedAt=Date.now(); else match.clockFetchedAt=null;
       match.aet=isAET||isPen;
       match.pen=isPen;
       const hTeamId=hc.team?.id;
@@ -3437,6 +3438,7 @@ function _applyEvents(events){
 }
 
 async function fetchAndUpdate(){
+  if(!_refreshTimer) _refreshTimer=setInterval(fetchTodayUpdate,60000);
   try{
     const todayStr=new Date().toISOString().slice(0,10);
     const dates=[];
@@ -3456,7 +3458,6 @@ async function fetchAndUpdate(){
     let hasLive=false;
     results.forEach(data=>{if(_applyEvents(data.events||[]))hasLive=true;});
 
-    if(!_refreshTimer) _refreshTimer=setInterval(fetchTodayUpdate,60000);
     document.getElementById('live-dot').classList[hasLive?'add':'remove']('active');
     _stampUpdated();
     renderAll();
@@ -3469,14 +3470,18 @@ async function fetchAndUpdate(){
 
 async function fetchTodayUpdate(){
   try{
-    const yyyymmdd=new Date().toISOString().slice(0,10).replace(/-/g,'');
-    const res=await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${yyyymmdd}`,
-      {signal:AbortSignal.timeout(10000)}
-    );
-    if(!res.ok) return;
-    const data=await res.json();
-    const hasLive=_applyEvents(data.events||[]);
+    const now=new Date();
+    const todayStr=now.toISOString().slice(0,10);
+    const yesterdayStr=new Date(now-86400000).toISOString().slice(0,10);
+    const results=await Promise.all([todayStr,yesterdayStr].map(async dt=>{
+      const res=await fetch(
+        `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dt.replace(/-/g,'')}`,
+        {signal:AbortSignal.timeout(10000)}
+      );
+      return res.ok?res.json():{events:[]};
+    }));
+    let hasLive=false;
+    results.forEach(data=>{if(_applyEvents(data.events||[]))hasLive=true;});
     document.getElementById('live-dot').classList[hasLive?'add':'remove']('active');
     _stampUpdated();
     renderAll();
@@ -3488,14 +3493,17 @@ async function fetchTodayUpdate(){
 // ═══════════════════════════════════════════════════════════════════
 function _liveClockStr(m){
   if(!m.clock) return 'LIVE';
-  if(!m.clockFetchedAt) return m.clock;
-  const p=m.clock.match(/^(\d+)(?:\+(\d+))?(?::(\d+))?/);
+  const p=m.clock.match(/^(\d+)(?:\+(\d+))?/);
   if(!p) return m.clock;
-  const baseSec=parseInt(p[1]||0)*60+(p[2]?parseInt(p[2])*60:0)+(p[3]?parseInt(p[3]):0);
-  const elapsed=Math.floor((Date.now()-m.clockFetchedAt)/1000);
-  const total=baseSec+elapsed;
-  const min=Math.floor(total/60);
-  return `${min}'`;
+  const elapsed=m.clockFetchedAt?Math.floor((Date.now()-m.clockFetchedAt)/60000):0;
+  if(p[2]) return `${p[1]}+${parseInt(p[2])+elapsed}'`;
+  const raw=parseInt(p[1])+elapsed;
+  const per=m.period;
+  if(per===1&&raw>45)              return `45+${raw-45}'`;
+  if((per===2||!per)&&raw>90)      return `90+${raw-90}'`;
+  if(per===3&&raw>105)             return `105+${raw-105}'`;
+  if(per===4&&raw>120)             return `120+${raw-120}'`;
+  return `${raw}'`;
 }
 
 function updateLiveClocks(){
@@ -3528,6 +3536,7 @@ function updateClock() {
     `${String(now.getUTCHours()).padStart(2,'0')}:${String(now.getUTCMinutes()).padStart(2,'0')}`);
   document.getElementById('header-ist').textContent=`${ist.dateStr} · ${ist.time12h} IST`;
   updateCountdowns();
+  updateLiveClocks();
 }
 
 
@@ -3712,13 +3721,13 @@ function renderAll() {
 
 updateClock();
 setInterval(updateClock,30000);
-setInterval(updateLiveClocks,10000);
 renderAll();
 scrollToNextMatch();
 fetchAndUpdate();
 if(window.innerWidth<1024) switchTab('groups');
 let _brRszT;
 window.addEventListener('resize',()=>{clearTimeout(_brRszT);_brRszT=setTimeout(renderBracket,200);});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)fetchTodayUpdate();});
 </script>
 </body>
 </html>
