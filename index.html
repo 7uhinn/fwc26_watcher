@@ -321,6 +321,7 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:#060809;font-famil
 .card-right-hdr{display:flex;align-items:center;gap:6px;}
 .live-indicator{display:flex;align-items:center;gap:3px;font-size:8px;color:var(--green);font-weight:700;}
 .live-dot-sm{width:5px;height:5px;border-radius:50%;background:var(--green);animation:livepulse 1.2s ease-in-out infinite;flex-shrink:0;}
+.card-countdown{font-size:8px;color:var(--accent);font-weight:700;white-space:nowrap;}
 .stars{letter-spacing:0;}
 .imp-label{font-size:8px;color:var(--muted);}
 /* teams row */
@@ -3277,12 +3278,15 @@ function renderSchedule() {
 
     const isBeingPredicted=_lastPredictedId===m.id;
     const tlClick=(isDone||isLive)?` onclick="openTimeline(${m.id})" style="cursor:pointer"`:'';
+    const kickoffMs=new Date(m.utcDate+'T'+m.utcTime+':00Z').getTime();
+    const diffToKickoff=kickoffMs-Date.now();
+    const showCountdown=!isLive&&!isDone&&diffToKickoff>0&&diffToKickoff<86400000;
     html+=`<div class="match-card imp${imp}${isLive?' live':''}${wCls?' '+wCls:''}${predClass}${isBeingPredicted?' predicting':''}"${tlClick} id="mc-${m.id}">
 <div class="card-hdr">
   <span class="card-stage">${stageLabel}${isPred?'<span class="pred-marker">PRED</span>':''}</span>
   <div class="card-right-hdr">
     ${starsHTML(imp)}
-    ${isLive?`<div class="live-indicator"><div class="live-dot-sm"></div>${m.clock||'LIVE'}</div>`:''}
+    ${isLive?`<div class="live-indicator"><div class="live-dot-sm"></div><span data-liveclock="${m.id}">${_liveClockStr(m)}</span></div>`:showCountdown?`<span class="card-countdown" data-kickoff="${kickoffMs}">${_fmtCountdown(diffToKickoff)}</span>`:''}
   </div>
 </div>
 <div class="card-teams">
@@ -3384,6 +3388,7 @@ function _applyEvents(events){
       if(effMatchHome===hCode){match.espnHomeTeamId=hc.team?.id;match.espnAwayTeamId=ac.team?.id;}
       else{match.espnHomeTeamId=ac.team?.id;match.espnAwayTeamId=hc.team?.id;}
       match.clock=ev.status?.displayClock||null;
+      match.clockFetchedAt=state==='in'?Date.now():null;
       match.aet=isAET||isPen;
       match.pen=isPen;
       const hTeamId=hc.team?.id;
@@ -3451,13 +3456,8 @@ async function fetchAndUpdate(){
     let hasLive=false;
     results.forEach(data=>{if(_applyEvents(data.events||[]))hasLive=true;});
 
-    if(hasLive&&!_refreshTimer){
-      _refreshTimer=setInterval(fetchTodayUpdate,60000);
-      document.getElementById('live-dot').classList.add('active');
-    }else if(!hasLive&&_refreshTimer){
-      clearInterval(_refreshTimer);_refreshTimer=null;
-      document.getElementById('live-dot').classList.remove('active');
-    }
+    if(!_refreshTimer) _refreshTimer=setInterval(fetchTodayUpdate,60000);
+    document.getElementById('live-dot').classList[hasLive?'add':'remove']('active');
     _stampUpdated();
     renderAll();
     scrollToNextMatch();
@@ -3477,10 +3477,7 @@ async function fetchTodayUpdate(){
     if(!res.ok) return;
     const data=await res.json();
     const hasLive=_applyEvents(data.events||[]);
-    if(!hasLive&&_refreshTimer){
-      clearInterval(_refreshTimer);_refreshTimer=null;
-      document.getElementById('live-dot').classList.remove('active');
-    }
+    document.getElementById('live-dot').classList[hasLive?'add':'remove']('active');
     _stampUpdated();
     renderAll();
   }catch(e){console.warn('ESPN live refresh failed:',e.message);}
@@ -3489,11 +3486,48 @@ async function fetchTodayUpdate(){
 // ═══════════════════════════════════════════════════════════════════
 // CLOCK + SCALE + INIT
 // ═══════════════════════════════════════════════════════════════════
+function _liveClockStr(m){
+  if(!m.clock) return 'LIVE';
+  if(!m.clockFetchedAt) return m.clock;
+  const p=m.clock.match(/^(\d+)(?:\+(\d+))?(?::(\d+))?/);
+  if(!p) return m.clock;
+  const baseSec=parseInt(p[1]||0)*60+(p[2]?parseInt(p[2])*60:0)+(p[3]?parseInt(p[3]):0);
+  const elapsed=Math.floor((Date.now()-m.clockFetchedAt)/1000);
+  const total=baseSec+elapsed;
+  const min=Math.floor(total/60);
+  return `${min}'`;
+}
+
+function updateLiveClocks(){
+  MATCHES.filter(m=>m.status==='IN_PLAY').forEach(m=>{
+    const el=document.querySelector(`[data-liveclock="${m.id}"]`);
+    if(el) el.textContent=_liveClockStr(m);
+  });
+}
+
+function _fmtCountdown(ms){
+  if(ms<=0) return 'Starting…';
+  const totalMin=Math.floor(ms/60000);
+  const h=Math.floor(totalMin/60), m=totalMin%60;
+  if(h>0) return `in ${h}h ${m}m`;
+  if(totalMin>0) return `in ${totalMin}m`;
+  return 'in <1m';
+}
+
+function updateCountdowns(){
+  const now=Date.now();
+  document.querySelectorAll('.card-countdown[data-kickoff]').forEach(el=>{
+    const diff=parseInt(el.dataset.kickoff)-now;
+    el.textContent=diff>0?_fmtCountdown(diff):'Starting…';
+  });
+}
+
 function updateClock() {
   const now=new Date();
   const ist=toIST(now.toISOString().slice(0,10),
     `${String(now.getUTCHours()).padStart(2,'0')}:${String(now.getUTCMinutes()).padStart(2,'0')}`);
   document.getElementById('header-ist').textContent=`${ist.dateStr} · ${ist.time12h} IST`;
+  updateCountdowns();
 }
 
 
@@ -3678,6 +3712,7 @@ function renderAll() {
 
 updateClock();
 setInterval(updateClock,30000);
+setInterval(updateLiveClocks,10000);
 renderAll();
 scrollToNextMatch();
 fetchAndUpdate();
