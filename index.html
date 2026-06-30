@@ -3016,6 +3016,9 @@ function renderBracket() {
     if(predictionMode&&bmRef&&bmRef.status!=='FINISHED'&&bmRef.status!=='IN_PLAY') {
       out+=`<rect class="pred-clickable" x="${x}" y="${y}" width="${w}" height="${MH}" fill="transparent" onclick="openPredEditor(${bmRef.id},'${topCode||''}','${botCode||''}')"/>`;
     }
+    if(bmRef&&(bmRef.status==='FINISHED'||bmRef.status==='IN_PLAY')) {
+      out+=`<rect x="${x}" y="${y}" width="${w}" height="${MH}" fill="transparent" style="cursor:pointer" onclick="openTimeline(${bmRef.id})"/>`;
+    }
     return out;
   }
 
@@ -3156,11 +3159,24 @@ function watchClass(imp, win) {
 }
 
 function scrollToNextMatch() {
-  const next=[...MATCHES].sort((a,b)=>(a.utcDate+a.utcTime)<(b.utcDate+b.utcTime)?-1:1)
-    .find(m=>m.status!=='FINISHED');
-  if(next) {
+  const sorted=[...MATCHES].sort((a,b)=>(a.utcDate+a.utcTime)<(b.utcDate+b.utcTime)?-1:1);
+  // 1. live match takes priority
+  const live=sorted.find(m=>m.status==='IN_PLAY');
+  if(live){
+    const el=document.getElementById('mc-'+live.id);
+    if(el){el.scrollIntoView({block:'center',behavior:'smooth'});return;}
+  }
+  // 2. last finished match — keeps the done/upcoming boundary in view
+  const finished=[...sorted].reverse().find(m=>m.status==='FINISHED');
+  if(finished){
+    const el=document.getElementById('mc-'+finished.id);
+    if(el){el.scrollIntoView({block:'center',behavior:'smooth'});return;}
+  }
+  // 3. fallback: first upcoming match
+  const next=sorted.find(m=>m.status!=='FINISHED');
+  if(next){
     const el=document.getElementById('mc-'+next.id);
-    if(el) el.scrollIntoView({block:'start',behavior:'instant'});
+    if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
   }
 }
 
@@ -3206,7 +3222,7 @@ function renderSchedule() {
     // wit: null=no result, true=home won, false=away won
     const effS=getScoreFor(m);
     const isSettled=effS.homeScore!==null&&effHome&&effAway;
-    const wit=isSettled?(effS.homeScore>effS.awayScore?true:effS.awayScore>effS.homeScore?false:null):null;
+    const wit=isSettled?(effS.homeScore>effS.awayScore?true:effS.awayScore>effS.homeScore?false:(m.pen&&m.penHome!=null&&m.penAway!=null)?(m.penHome>m.penAway?true:m.penAway>m.penHome?false:null):null):null;
     const isPred=predictionMode&&PREDICTIONS[m.id]!=null&&!isDone&&!isLive;
 
     function side(code, slot, isHome) {
@@ -3360,8 +3376,8 @@ function _applyEvents(events){
       if(match) effMatchHome=resolveSlot(match.homeSlot,_stMap,_thirdRanked);
     }
     if(match){
-      if(effMatchHome===hCode){match.homeScore=hScore;match.awayScore=aScore;match.penHome=penH;match.penAway=penA;}
-      else{match.homeScore=aScore;match.awayScore=hScore;match.penHome=penA;match.penAway=penH;}
+      if(effMatchHome===hCode){match.homeScore=hScore;match.awayScore=aScore;if(penH!=null&&penA!=null){match.penHome=penH;match.penAway=penA;}}
+      else{match.homeScore=aScore;match.awayScore=hScore;if(penH!=null&&penA!=null){match.penHome=penA;match.penAway=penH;}}
       match.status=state==='post'?'FINISHED':'IN_PLAY';
       match.espnId=ev.id;
       // Store IDs relative to OUR home/away so _parseSummaryIncidents assigns sides correctly
@@ -3444,6 +3460,7 @@ async function fetchAndUpdate(){
     }
     _stampUpdated();
     renderAll();
+    scrollToNextMatch();
   }catch(e){
     console.warn('ESPN fetch failed:',e.message);
     document.getElementById('header-updated').textContent='Live data unavailable — showing schedule';
@@ -3489,6 +3506,7 @@ function switchTab(name){
     document.getElementById(id).classList.remove('tab-active');
   });
   document.getElementById(map[name])?.classList.add('tab-active');
+  if(name==='schedule') scrollToNextMatch();
 }
 
 function renderMobileBracket() {
@@ -3568,6 +3586,8 @@ function renderMobileBracket() {
     if(live) o+=`<rect x="${x+0.75}" y="${y+0.75}" width="${w-1.5}" height="${MH-1.5}" rx="2" fill="none" stroke="var(--gold)" stroke-width="1.5"><animate attributeName="stroke-opacity" values="1;0.25;1" dur="1.4s" repeatCount="indefinite"/></rect>`;
     if(predictionMode&&bm&&bm.status!=='FINISHED'&&bm.status!=='IN_PLAY')
       o+=`<rect class="pred-clickable" x="${x}" y="${y}" width="${w}" height="${MH}" fill="transparent" onclick="openPredEditor(${bm.id},'${hc||''}','${ac||''}')"/>`;
+    if(bm&&(bm.status==='FINISHED'||bm.status==='IN_PLAY'))
+      o+=`<rect x="${x}" y="${y}" width="${w}" height="${MH}" fill="transparent" style="cursor:pointer" onclick="openTimeline(${bm.id})"/>`;
     return o;
   }
 
